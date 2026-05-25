@@ -91,7 +91,7 @@ function LoginPage() {
 
     setIsLoading(true);
     // Redirect to Microsoft OAuth endpoint
-    window.location.href = "http://localhost:5000/api/auth/microsoft";
+    window.location.href = "https://trainingformautomation.onrender.com/api/auth/microsoft";
   };
 
   const handleGoogleLogin = () => {
@@ -104,7 +104,7 @@ function LoginPage() {
     }
 
     setIsLoading(true);
-    window.location.href = "http://localhost:5000/api/auth/google";
+    window.location.href = "https://trainingformautomation.onrender.com/api/auth/google";
   };
 
   const handleInputChange = (e) => {
@@ -171,8 +171,8 @@ function LoginPage() {
 
     try {
       const endpoint = isSignUp
-        ? "http://localhost:5000/api/auth/signup"
-        : "http://localhost:5000/api/auth/login";
+        ? "https://trainingformautomation.onrender.com/api/auth/signup"
+        : "https://trainingformautomation.onrender.com/api/auth/login";
 
       const payload = isSignUp
         ? {
