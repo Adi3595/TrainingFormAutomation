@@ -1,0 +1,1017 @@
+/* UpdatePage.css - Futuristic Dark Theme */
+/* Premium Dark Mystic Gradient + Glassmorphism + Subtle Accents */
+
+/* ============================================
+   GLOBAL STYLES & CONTAINER
+   ============================================ */
+.update-page-container {
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 30%, #0a0a0f 0%, #030308 100%);
+  padding: 32px 24px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Animated Grid Background */
+.update-page-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+
+/* Radial Glow Effect */
+.update-page-container::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.03) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: pulseGlow 8s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+.update-header {
+  text-align: center;
+  margin-bottom: 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.update-header h1 {
+  font-size: 36px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff, #a0a0b0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+
+.update-subheading {
+  color: #7a7a8a;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+/* ============================================
+   TAB BAR - Premium Design
+   ============================================ */
+.update-tab-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.update-tab {
+  padding: 12px 28px;
+  background: rgba(15, 15, 25, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 40px;
+  color: #a0a0b0;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.update-tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.5s ease;
+}
+
+.update-tab:hover::before {
+  left: 100%;
+}
+
+.update-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.update-tab.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================
+   CONTENT AREA
+   ============================================ */
+.update-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  overflow: visible !important;
+}
+
+/* ============================================
+   SECTION CARDS - Glassmorphic
+   ============================================ */
+.update-card {
+  background: rgba(10, 10, 18, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: visible !important;
+}
+
+.update-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  pointer-events: none;
+}
+
+.update-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.update-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  color: #c0c0d0;
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  padding-left: 16px;
+  letter-spacing: -0.2px;
+}
+
+/* Card that contains search should not clip dropdown */
+.update-card:has(.update-search-container) {
+  overflow: visible !important;
+}
+
+/* ============================================
+   FORM GRID & FIELDS
+   ============================================ */
+.update-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 28px;
+}
+
+.update-field {
+  margin-bottom: 20px;
+}
+
+.update-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a0a0b0;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.update-field-required {
+  color: #f87171;
+  margin-left: 4px;
+}
+
+/* Input Styles - Futuristic */
+.update-input,
+.update-select,
+.update-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: rgba(5, 5, 10, 0.8);
+  color: #f1f5f9;
+  font-family: inherit;
+}
+
+.update-input:hover,
+.update-select:hover,
+.update-textarea:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(10, 10, 18, 0.9);
+}
+
+.update-input:focus,
+.update-select:focus,
+.update-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+  background: rgba(15, 15, 25, 0.95);
+}
+
+.update-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* ============================================
+   SEARCH CONTAINER & DROPDOWN - DARK THEME
+   ============================================ */
+.update-search-container {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 100;
+}
+
+.update-search-wrapper {
+  flex: 1;
+  position: relative;
+  z-index: 101;
+}
+
+.update-search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  background: #0f0f1a;
+  color: #ffffff;
+}
+
+.update-search-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+}
+
+.update-search-input::placeholder {
+  color: #7a7a8a;
+}
+
+/* Dropdown - Fully Dark Theme */
+.update-dropdown {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background: #0a0a14;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  margin-top: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 9999;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  animation: dropdownFade 0.25s ease-out;
+}
+
+@keyframes dropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.update-dropdown-item {
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0a0a14;
+}
+
+.update-dropdown-item:hover {
+  background: #1a1a2e;
+  transform: translateX(4px);
+}
+
+.update-dropdown-item-name {
+  font-weight: 600;
+  color: #ffffff;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.update-dropdown-item-id {
+  font-size: 11px;
+  color: #a0a0b0;
+  font-family: monospace;
+}
+
+.update-dropdown-empty {
+  padding: 40px;
+  text-align: center;
+  color: #8a8a9a;
+  background: #0a0a14;
+  font-size: 13px;
+}
+
+/* Dropdown Scrollbar - Dark */
+.update-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.update-dropdown::-webkit-scrollbar-track {
+  background: #0a0a14;
+  border-radius: 10px;
+}
+
+.update-dropdown::-webkit-scrollbar-thumb {
+  background: #2a2a3a;
+  border-radius: 10px;
+}
+
+.update-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #3a3a4a;
+}
+
+/* ============================================
+   TOGGLE SWITCH - Futuristic
+   ============================================ */
+.update-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.update-toggle-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e8;
+}
+
+.update-toggle-track {
+  width: 52px;
+  height: 28px;
+  border-radius: 14px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s ease;
+  background: rgba(50, 50, 70, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.update-toggle-track.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.update-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.update-toggle-thumb.active {
+  transform: translateX(24px);
+}
+
+/* ============================================ */
+/* DELAY ROW WITH CALENDAR */
+/* ============================================ */
+
+.update-delay-row-modern {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: rgba(10, 10, 18, 0.4);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.update-delay-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a0a0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.update-delay-type-toggle {
+  display: flex;
+  gap: 10px;
+}
+
+.update-delay-type-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  color: #a0a0b0;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.update-delay-type-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.update-delay-type-btn.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.update-duration-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.update-date-picker-wrapper {
+  position: relative;
+}
+
+.update-date-picker-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(5, 5, 10, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #e0e0e8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.update-date-picker-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.update-date-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #f87171;
+}
+
+/* ============================================ */
+/* REACT DATEPICKER CUSTOM STYLING - DARK */
+/* ============================================ */
+
+.react-datepicker {
+  background-color: #0a0a14 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 16px !important;
+  font-family: inherit !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+.react-datepicker__header {
+  background-color: #050508 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name,
+.react-datepicker__day {
+  color: #e0e0e8 !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #1a1a2e !important;
+}
+
+.react-datepicker__day--selected {
+  background-color: #2a2a3a !important;
+}
+
+.react-datepicker__time-container {
+  border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-datepicker__time-box {
+  background-color: #0a0a14 !important;
+}
+
+.react-datepicker__time-list-item {
+  color: #e0e0e8 !important;
+}
+
+.react-datepicker__time-list-item:hover {
+  background-color: #1a1a2e !important;
+}
+
+.react-datepicker__time-list-item--selected {
+  background-color: #2a2a3a !important;
+}
+
+/* ============================================ */
+/* OLD DELAY ROW (KEPT FOR COMPATIBILITY) */
+/* ============================================ */
+
+.update-delay-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.update-delay-label {
+  min-width: 140px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #a0a0b0;
+}
+
+.update-delay-input {
+  width: 100px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(5, 5, 10, 0.8);
+  color: #f1f5f9;
+  font-size: 14px;
+  text-align: center;
+}
+
+.update-delay-select {
+  width: 120px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(5, 5, 10, 0.8);
+  color: #f1f5f9;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Buttons - Premium */
+.update-btn-primary {
+  padding: 12px 28px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.update-btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  transition: left 0.5s ease;
+}
+
+.update-btn-primary:hover::before {
+  left: 100%;
+}
+
+.update-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.update-btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.update-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary Button */
+.update-btn-secondary {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 15, 25, 0.6);
+  color: #c0c0d0;
+  padding: 10px 18px;
+  border-radius: 40px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  font-size: 13px;
+}
+
+.update-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Banner Messages */
+.update-banner {
+  padding: 14px 20px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out;
+  backdrop-filter: blur(10px);
+}
+
+.update-banner-success {
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  color: #34d399;
+}
+
+.update-banner-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.update-banner-icon {
+  margin-right: 10px;
+  font-weight: 600;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Form Footer */
+.update-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.update-meta-id {
+  font-size: 11px;
+  color: #6a6a7a;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 12px;
+  border-radius: 8px;
+  word-break: break-all;
+}
+
+/* Conditional Fields */
+.update-conditional-fields {
+  padding-left: 20px;
+  margin-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Employee List - Premium Design */
+.update-employee-list {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(5, 5, 10, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.update-employee-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.update-employee-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.update-employee-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+.update-employee-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.update-employee-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.25s ease;
+  color: #e0e0e8;
+}
+
+.update-employee-row:last-child {
+  border-bottom: none;
+}
+
+.update-employee-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateX(2px);
+}
+
+.update-employee-row.selected {
+  background: rgba(255, 255, 255, 0.08);
+  border-left: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.update-employee-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #ffffff;
+  cursor: pointer;
+}
+
+.update-employee-row strong {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Assignment Actions */
+.update-assignment-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+/* Loading State */
+.update-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.update-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.update-empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: #7a7a8a;
+  font-size: 14px;
+}
+
+/* Helper Classes */
+.update-text-center { text-align: center; }
+.update-mt-2 { margin-top: 8px; }
+.update-mt-3 { margin-top: 12px; }
+.update-mt-4 { margin-top: 16px; }
+.update-mb-2 { margin-bottom: 8px; }
+.update-mb-3 { margin-bottom: 12px; }
+.update-mb-4 { margin-bottom: 16px; }
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 1024px) {
+  .update-grid-2 {
+    gap: 16px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .update-page-container {
+    padding: 20px 16px;
+  }
+
+  .update-header h1 {
+    font-size: 28px;
+  }
+
+  .update-tab-bar {
+    gap: 8px;
+  }
+
+  .update-tab {
+    padding: 8px 18px;
+    font-size: 13px;
+  }
+
+  .update-card {
+    padding: 20px 18px;
+  }
+
+  .update-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .update-search-container {
+    flex-direction: column;
+  }
+
+  .update-btn-primary {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .update-delay-row,
+  .update-duration-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .update-delay-label {
+    min-width: auto;
+  }
+
+  .update-form-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .update-conditional-fields {
+    padding-left: 12px;
+    margin-left: 8px;
+  }
+
+  .update-assignment-actions {
+    flex-direction: column;
+  }
+
+  .update-btn-secondary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .update-delay-type-toggle {
+    flex-direction: column;
+  }
+
+  .update-delay-row-modern {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .update-card-title {
+    font-size: 16px;
+  }
+  
+  .update-employee-row {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  
+  .update-employee-row strong {
+    font-size: 13px;
+  }
+  
+  .update-dropdown-item {
+    padding: 10px 14px;
+  }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+  .update-page-container {
+    background: white;
+    padding: 20px;
+  }
+  
+  .update-tab-bar,
+  .update-search-container,
+  .update-btn-primary,
+  .update-btn-secondary,
+  .update-assignment-actions {
+    display: none;
+  }
+  
+  .update-card {
+    border: 1px solid #ddd;
+    background: white;
+    box-shadow: none;
+  }
+  
+  .update-card-title {
+    color: #333;
+  }
+  
+  .update-input,
+  .update-select,
+  .update-textarea {
+    border: 1px solid #ccc;
+    background: white;
+    color: #333;
+  }
+}
+
+/* Scrollbar Global Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(5, 5, 10, 0.8);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}

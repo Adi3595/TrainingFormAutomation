@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="description" content="HR Training Management System - Manage training programs, batches, and employee assignments" />
+  <meta name="theme-color" content="#667eea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <title>HR Training Management System</title>
+  
+  <!-- Favicon (optional - you can add your own) -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  
+  <!-- Preconnect to external resources -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+  <!-- Google Fonts for better typography -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+  
+  <!-- Global styles -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    #root {
+      min-height: 100vh;
+    }
+    
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    /* Loading animation for initial render */
+    #root:empty::before {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    
+    /* Prevent FOUC (Flash of Unstyled Content) */
+    .no-fouc {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .no-fouc.ready {
+      opacity: 1;
+    }
+    
+    /* Accessibility focus styles */
+    :focus {
+      outline: 2px solid #667eea;
+      outline-offset: 2px;
+    }
+    
+    :focus:not(:focus-visible) {
+      outline: none;
+    }
+    
+    :focus-visible {
+      outline: 2px solid #667eea;
+      outline-offset: 2px;
+    }
+    
+    /* Selection styling */
+    ::selection {
+      background: rgba(102, 126, 234, 0.3);
+      color: #2d3748;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.5);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(102, 126, 234, 0.8);
+    }
+    
+    /* Dark mode scrollbar */
+    @media (prefers-color-scheme: dark) {
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: rgba(102, 126, 234, 0.3);
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(102, 126, 234, 0.5);
+      }
+    }
+    
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+      }
+      
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root"></div>
+  
+  <!-- Optional: Add error boundary fallback -->
+  <script>
+    // Handle global errors
+    window.addEventListener('error', function(e) {
+      console.error('Global error:', e.error);
+      // You can show a user-friendly error message here
+      const root = document.getElementById('root');
+      if (root && !root.hasChildNodes()) {
+        root.innerHTML = `
+          <div style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+          ">
+            <div style="
+              background: white;
+              border-radius: 16px;
+              padding: 32px;
+              max-width: 500px;
+              text-align: center;
+              box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            ">
+              <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+              <h2 style="margin: 0 0 8px; color: #2d3748;">Application Error</h2>
+              <p style="margin: 0 0 16px; color: #718096;">Something went wrong loading the application.</p>
+              <button onclick="location.reload()" style="
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 10px 24px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+              ">
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    });
+    
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('Unhandled rejection:', e.reason);
+    });
+    
+    // Add class to remove FOUC when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+      document.body.classList.add('ready');
+    });
+    
+    // Service Worker registration (optional - for PWA)
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').then(registration => {
+          console.log('SW registered: ', registration);
+        }).catch(registrationError => {
+          console.log('SW registration failed: ', registrationError);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
