@@ -1641,8 +1641,8 @@ exports.uploadManagerFeedback = async (req, res) => {
             // Insert new feedback
             result = await client.query(
               `INSERT INTO manager_feedback
-               (manager_id, employee_id, training_id, performance_rating, manager_comments, form_completed, submitted_at, created_at)
-               VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+               (manager_id, employee_id, training_id, performance_rating, manager_comments, form_completed, submitted_at)
+               VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP)
                RETURNING *`,
               [managerDbId, employeeDbId, trainingDbId, finalRating, comments || null]
             );
