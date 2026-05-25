@@ -1208,8 +1208,7 @@ exports.uploadEmployeeFeedback = async (req, res) => {
   }
 };
 
-// Upload Manager Feedback CSV (UPDATED - works with only names, no IDs)
-// Upload Manager Feedback CSV/Excel (UPDATED with manager_code support)
+// Upload Manager Feedback CSV/Excel (UPDATED - Only looks up managers, no auto-creation)
 exports.uploadManagerFeedback = async (req, res) => {
   const client = await pool.connect();
 
@@ -1481,74 +1480,51 @@ exports.uploadManagerFeedback = async (req, res) => {
         }
 
         // ============================================================
-        // GET OR CREATE MANAGER
+        // LOOKUP MANAGER FROM DATABASE (NO AUTO-CREATION)
         // ============================================================
         
         let manager = null;
-        let managerCodeToUse = manager_code;
 
         // First, try to find existing manager by manager_code
-        if (managerCodeToUse && managerCodeToUse.trim() !== "") {
+        if (manager_code && manager_code.trim() !== "") {
           const existingManager = await client.query(
             `SELECT manager_id, manager_code, name, email, department FROM managers WHERE manager_code = $1`,
-            [managerCodeToUse]
+            [manager_code]
           );
           if (existingManager.rows.length > 0) {
             manager = existingManager;
+            console.log(`✅ Manager found by code: ${manager_code}`);
           }
         }
 
-        // If not found by code, try by name using helper
+        // If not found by code, try by name
         if ((!manager || manager.rows.length === 0) && manager_name) {
-          // Try to find by name using getOrCreateManager (which will find existing by name)
-          const foundManager = await getOrCreateManager(
-            client,
-            managerCodeToUse || `TEMP_${Date.now()}`,
-            manager_name,
-            null,
-            department || null
+          const existingByName = await client.query(
+            `SELECT manager_id, manager_code, name, email, department FROM managers WHERE name ILIKE $1 LIMIT 1`,
+            [`%${manager_name.trim()}%`]
           );
-          
-          if (foundManager && foundManager.manager_id) {
-            manager = { rows: [{ 
-              manager_id: foundManager.manager_id, 
-              manager_code: foundManager.manager_code,
-              name: manager_name 
-            }] };
+          if (existingByName.rows.length > 0) {
+            manager = existingByName;
+            console.log(`✅ Manager found by name: ${manager_name}`);
           }
         }
 
-        // If manager not found, create a new one using helper
+        // If manager not found in database, skip this row (don't auto-create)
         if (!manager || manager.rows.length === 0) {
-          console.log(`⚠️ Manager not found. Creating new manager: ${manager_name}`);
-          
-          const newManager = await getOrCreateManager(
-            client,
-            managerCodeToUse || `MGR_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-            manager_name,
-            null,
-            department || null
-          );
-          
-          if (newManager && newManager.manager_id) {
-            manager = { rows: [{ 
-              manager_id: newManager.manager_id, 
-              manager_code: newManager.manager_code,
-              name: manager_name 
-            }] };
-          }
-        }
-
-        if (!manager || manager.rows.length === 0) {
-          console.log(`❌ Failed to find or create manager`);
+          console.log(`❌ Manager not found in database: Name="${manager_name}", Code="${manager_code}"`);
           skippedCount++;
-          errors.push({ manager_name, manager_code, error: "Manager not found and could not be created" });
+          errors.push({ 
+            manager_name, 
+            manager_code, 
+            error: "Manager not found in database. Please upload managers CSV first."
+          });
           continue;
         }
 
         const managerDbId = manager.rows[0].manager_id;
         const managerCodeValue = manager.rows[0].manager_code;
-        console.log(`✅ Manager: ${manager.rows[0].name} (Code: ${managerCodeValue}, ID: ${managerDbId})`);
+        const managerEmailValue = manager.rows[0].email;
+        console.log(`✅ Manager: ${manager.rows[0].name} (Code: ${managerCodeValue}, Email: ${managerEmailValue}, ID: ${managerDbId})`);
 
         // ============================================================
         // GET OR CREATE EMPLOYEE
@@ -1559,7 +1535,7 @@ exports.uploadManagerFeedback = async (req, res) => {
         // First try by employee_code
         if (employee_code) {
           employee = await client.query(
-            `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE employee_code = $1`,
+            `SELECT employee_id, employee_code, name, manager_id, email FROM employees WHERE employee_code = $1`,
             [employee_code]
           );
         }
@@ -1567,7 +1543,7 @@ exports.uploadManagerFeedback = async (req, res) => {
         // If not found by code, try by name
         if ((!employee || employee.rows.length === 0) && employee_name) {
           employee = await client.query(
-            `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE name ILIKE $1 LIMIT 1`,
+            `SELECT employee_id, employee_code, name, manager_id, email FROM employees WHERE name ILIKE $1 LIMIT 1`,
             [`%${employee_name.trim()}%`]
           );
         }
@@ -1582,10 +1558,11 @@ exports.uploadManagerFeedback = async (req, res) => {
           const newEmployee = await client.query(
             `INSERT INTO employees (employee_id, employee_code, name, email, department, manager_id, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-             RETURNING employee_id, employee_code, name`,
+             RETURNING employee_id, employee_code, name, email`,
             [generatedUUID, newEmployeeCode, employee_name, null, department || null, managerDbId]
           );
           employee = newEmployee;
+          console.log(`✅ Created new employee: ${employee_name} (Code: ${newEmployeeCode})`);
         }
 
         if (!employee || employee.rows.length === 0) {

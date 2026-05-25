@@ -1,3 +1,21 @@
+create table public.app_users (
+  user_id uuid not null default gen_random_uuid (),
+  name text not null,
+  email text not null,
+  company text null,
+  password_hash text null,
+  google_id text null,
+  google_connected boolean null default false,
+  role text null default 'admin'::text,
+  created_at timestamp without time zone null default now(),
+  updated_at timestamp without time zone null default now(),
+  microsoft_id text null,
+  microsoft_connected boolean null default false,
+  constraint app_users_pkey primary key (user_id),
+  constraint app_users_email_key unique (email),
+  constraint app_users_google_id_key unique (google_id)
+) TABLESPACE pg_default;
+
 create table public.employee_feedback (
   response_id uuid not null default gen_random_uuid (),
   employee_id uuid null,
@@ -57,8 +75,11 @@ create table public.managers (
   email text not null,
   department text null,
   created_at timestamp without time zone null default now(),
+  manager_code character varying(100) not null,
+  updated_at timestamp without time zone null default now(),
   constraint managers_pkey primary key (manager_id),
-  constraint managers_email_key unique (email)
+  constraint managers_email_key unique (email),
+  constraint managers_manager_code_key unique (manager_code)
 ) TABLESPACE pg_default;
 
 create table public.scheduled_emails (
@@ -106,6 +127,7 @@ create index IF not exists idx_scheduled_emails_training on public.scheduled_ema
   email_cancelled
 ) TABLESPACE pg_default;
 
+
 create table public.scheduled_employee_emails (
   id serial not null,
   employee_id uuid not null,
@@ -151,6 +173,7 @@ create index IF not exists idx_training_employees_status on public.training_empl
 
 create index IF not exists idx_training_employees_training_status on public.training_employees using btree (training_id, status) TABLESPACE pg_default;
 
+
 create table public.training_programs (
   training_id uuid not null default gen_random_uuid (),
   training_name text not null,
@@ -167,26 +190,33 @@ create table public.training_programs (
   created_by uuid null,
   employee_mail_subject text null,
   employee_mail_body text null,
+  updated_at timestamp without time zone null default CURRENT_TIMESTAMP,
   constraint training_programs_pkey primary key (training_id),
   constraint training_programs_created_by_fkey foreign KEY (created_by) references app_users (user_id) on delete set null,
   constraint valid_delay_units check (
     (
       (
         (initial_delay_unit)::text = any (
-          array[
-            ('minutes'::character varying)::text,
-            ('hours'::character varying)::text,
-            ('days'::character varying)::text
-          ]
+          (
+            array[
+              'minutes'::character varying,
+              'hours'::character varying,
+              'days'::character varying,
+              'months'::character varying
+            ]
+          )::text[]
         )
       )
       and (
         (reminder_delay_unit)::text = any (
-          array[
-            ('minutes'::character varying)::text,
-            ('hours'::character varying)::text,
-            ('days'::character varying)::text
-          ]
+          (
+            array[
+              'minutes'::character varying,
+              'hours'::character varying,
+              'days'::character varying,
+              'months'::character varying
+            ]
+          )::text[]
         )
       )
     )
