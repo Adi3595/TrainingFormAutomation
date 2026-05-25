@@ -629,7 +629,7 @@ exports.uploadManagers = async (req, res) => {
   }
 };
 
-// Upload Employee Feedback CSV (UPDATED for your exact Excel format)
+// Upload Employee Feedback CSV (UPDATED - sends email to training creator/admin)
 exports.uploadEmployeeFeedback = async (req, res) => {
   const client = await pool.connect();
 
@@ -654,7 +654,11 @@ exports.uploadEmployeeFeedback = async (req, res) => {
     let updatedCount = 0;
     let skippedCount = 0;
     let emailScheduledCount = 0;
+    let adminNotificationCount = 0;
     const errors = [];
+    
+    // Store notifications grouped by training creator
+    const notificationsByCreator = new Map(); // Key: creator_email, Value: { creatorName, notifications: [] }
 
     for (let row of data) {
       try {
@@ -664,8 +668,9 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         const training_name = (row["Training Name"] || row["Training Program Name"] || row["training_name"] || "").toString().trim();
         const faculty_name = (row["Faculty Name"] || row["Trainer Name"] || row["faculty_name"] || "").toString().trim();
         
-        // Map rating - your Excel uses "Overall rating of the programme? (5 Excellent and 1 Poor)"
+        // Map rating
         let rating = null;
+        let ratingText = "";
         const ratingColumn = row["Overall rating of the programme? (5 Excellent and 1 Poor)"] || 
                             row["rating"] || 
                             row["Rating"] || 
@@ -673,19 +678,19 @@ exports.uploadEmployeeFeedback = async (req, res) => {
                             "";
         
         if (ratingColumn) {
-          // Handle both numeric and text ratings
           const ratingValue = ratingColumn.toString().trim();
+          ratingText = ratingValue;
           if (!isNaN(ratingValue) && ratingValue >= 1 && ratingValue <= 5) {
             rating = parseInt(ratingValue, 10);
-          } else if (ratingValue.toLowerCase() === "Excellent") {
+          } else if (ratingValue.toLowerCase() === "excellent") {
             rating = 5;
-          } else if (ratingValue.toLowerCase() === "Very Good") {
+          } else if (ratingValue.toLowerCase() === "very good") {
             rating = 4;
-          } else if (ratingValue.toLowerCase() === "Good") {
+          } else if (ratingValue.toLowerCase() === "good") {
             rating = 3;
-          } else if (ratingValue.toLowerCase() === "Average") {
+          } else if (ratingValue.toLowerCase() === "average") {
             rating = 2;
-          } else if (ratingValue.toLowerCase() === "Poor") {
+          } else if (ratingValue.toLowerCase() === "poor") {
             rating = 1;
           }
         }
@@ -736,7 +741,7 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         
         if (employee_code) {
           employee = await client.query(
-            `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE employee_code = $1`,
+            `SELECT employee_id, employee_code, name, manager_id, email FROM employees WHERE employee_code = $1`,
             [employee_code]
           );
         }
@@ -744,7 +749,7 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         if ((!employee || employee.rows.length === 0) && employee_name) {
           console.log(`🔍 Looking up employee by name: "${employee_name}"`);
           employee = await client.query(
-            `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE name ILIKE $1 LIMIT 1`,
+            `SELECT employee_id, employee_code, name, manager_id, email FROM employees WHERE name ILIKE $1 LIMIT 1`,
             [`%${employee_name.trim()}%`]
           );
         }
@@ -762,14 +767,17 @@ exports.uploadEmployeeFeedback = async (req, res) => {
 
         const employeeId = employee.rows[0].employee_id;
         const employeeManagerId = employee.rows[0].manager_id;
+        const employeeEmail = employee.rows[0].email;
         console.log(`✅ Found employee: ${employee.rows[0].name} (Code: ${employee.rows[0].employee_code}, ID: ${employeeId})`);
 
-        // Get training by name
+        // Get training by name (INCLUDING creator info)
         let training = await client.query(
-          `SELECT training_id, training_name, requires_manager_feedback, manager_form_link, 
-                  initial_delay_value, initial_delay_unit, reminder_delay_value, reminder_delay_unit
-           FROM training_programs 
-           WHERE training_name ILIKE $1 
+          `SELECT tp.training_id, tp.training_name, tp.requires_manager_feedback, tp.manager_form_link, 
+                  tp.initial_delay_value, tp.initial_delay_unit, tp.reminder_delay_value, tp.reminder_delay_unit,
+                  tp.created_by, u.name as creator_name, u.email as creator_email
+           FROM training_programs tp
+           LEFT JOIN app_users u ON tp.created_by = u.user_id
+           WHERE tp.training_name ILIKE $1 
            LIMIT 1`,
           [`%${training_name.trim()}%`]
         );
@@ -777,10 +785,12 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         if (training.rows.length === 0) {
           // Try exact match
           training = await client.query(
-            `SELECT training_id, training_name, requires_manager_feedback, manager_form_link,
-                    initial_delay_value, initial_delay_unit, reminder_delay_value, reminder_delay_unit
-             FROM training_programs 
-             WHERE training_name = $1`,
+            `SELECT tp.training_id, tp.training_name, tp.requires_manager_feedback, tp.manager_form_link,
+                    tp.initial_delay_value, tp.initial_delay_unit, tp.reminder_delay_value, tp.reminder_delay_unit,
+                    tp.created_by, u.name as creator_name, u.email as creator_email
+             FROM training_programs tp
+             LEFT JOIN app_users u ON tp.created_by = u.user_id
+             WHERE tp.training_name = $1`,
             [training_name.trim()]
           );
         }
@@ -797,11 +807,16 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         }
 
         const trainingId = training.rows[0].training_id;
-        console.log(`✅ Found training: ${training.rows[0].training_name} (ID: ${trainingId})`);
+        const trainingName = training.rows[0].training_name;
+        const creatorEmail = training.rows[0].creator_email;
+        const creatorName = training.rows[0].creator_name || "Training Creator";
+        
+        console.log(`✅ Found training: ${trainingName} (ID: ${trainingId})`);
+        console.log(`📧 Training Creator: ${creatorName} (${creatorEmail})`);
 
         // Check if feedback already exists
         const existingFeedback = await client.query(
-          `SELECT response_id, rating, comments, form_completed 
+          `SELECT response_id, rating, comments, form_completed, submitted_at
            FROM employee_feedback 
            WHERE employee_id = $1 AND training_id = $2`,
           [employeeId, trainingId]
@@ -809,8 +824,10 @@ exports.uploadEmployeeFeedback = async (req, res) => {
 
         let feedbackResult;
         let isUpdate = false;
+        let previousRating = null;
 
         if (existingFeedback.rows.length > 0) {
+          previousRating = existingFeedback.rows[0].rating;
           // Update existing feedback
           feedbackResult = await client.query(
             `UPDATE employee_feedback 
@@ -848,6 +865,31 @@ exports.uploadEmployeeFeedback = async (req, res) => {
           continue;
         }
 
+        // 📧 Store notification for the training creator (admin who created this training)
+        if (creatorEmail) {
+          if (!notificationsByCreator.has(creatorEmail)) {
+            notificationsByCreator.set(creatorEmail, {
+              creatorName: creatorName,
+              creatorEmail: creatorEmail,
+              notifications: []
+            });
+          }
+          
+          notificationsByCreator.get(creatorEmail).notifications.push({
+            employeeName: employee.rows[0].name,
+            employeeCode: employee.rows[0].employee_code,
+            trainingName: trainingName,
+            rating: rating,
+            ratingText: ratingText,
+            comments: comments,
+            isUpdate: isUpdate,
+            previousRating: previousRating,
+            submittedAt: new Date()
+          });
+          
+          adminNotificationCount++;
+        }
+
         // Check if manager feedback is required for this training
         if (training.rows[0].requires_manager_feedback && training.rows[0].manager_form_link) {
           
@@ -872,12 +914,11 @@ exports.uploadEmployeeFeedback = async (req, res) => {
 
           console.log("📌 Scheduling manager email with:", {
             employee_name: employee.rows[0].name,
-            training_name: training.rows[0].training_name,
+            training_name: trainingName,
             manager_id: managerId,
             manager_email: managerEmail
           });
 
-          // Calculate initial delay
           const initialDelayMinutes = convertToMinutes(
             training.rows[0].initial_delay_value,
             training.rows[0].initial_delay_unit
@@ -890,13 +931,11 @@ exports.uploadEmployeeFeedback = async (req, res) => {
             );
           }
 
-          // Calculate reminder delay
           const reminderDelayMinutes = convertToMinutes(
             training.rows[0].reminder_delay_value,
             training.rows[0].reminder_delay_unit
           );
 
-          // Check if email already scheduled
           const existingEmail = await client.query(
             `SELECT * FROM scheduled_emails 
              WHERE employee_id = $1 AND training_id = $2 AND email_type = 'initial' AND email_sent = false`,
@@ -941,6 +980,26 @@ exports.uploadEmployeeFeedback = async (req, res) => {
 
     await client.query("COMMIT");
     
+    // 📧 Send notifications to each training creator (admin who created the training)
+    if (notificationsByCreator.size > 0) {
+      try {
+        const emailService = require("../services/emailService");
+        
+        for (const [creatorEmail, data] of notificationsByCreator.entries()) {
+          await emailService.sendTrainingCreatorNotification(
+            creatorEmail,
+            data.creatorName,
+            data.notifications
+          );
+          console.log(`📧 Notification sent to training creator: ${creatorEmail} (${data.notifications.length} submissions)`);
+        }
+        
+      } catch (emailError) {
+        console.error("❌ Failed to send creator notification emails:", emailError.message);
+        // Don't fail the main request if email fails
+      }
+    }
+    
     // Clean up uploaded file
     if (req.file.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
@@ -952,7 +1011,9 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         inserted: insertedCount, 
         updated: updatedCount,
         skipped: skippedCount, 
-        emailsScheduled: emailScheduledCount 
+        emailsScheduled: emailScheduledCount,
+        creatorsNotified: notificationsByCreator.size,
+        totalNotificationsSent: adminNotificationCount
       },
       errors: errors.length > 0 ? errors.slice(0, 10) : undefined
     });
