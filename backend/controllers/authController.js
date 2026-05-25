@@ -1,4 +1,4 @@
-// authController.js
+// authController.js - With Domain Restriction
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { google } = require("googleapis");
@@ -12,7 +12,45 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // ==============================
-// SIGN UP
+// HELPER FUNCTION: Check if email domain is allowed
+// ==============================
+const isAllowedDomain = (email) => {
+  if (!process.env.ALLOWED_DOMAINS) {
+    // If no domains specified, allow all
+    console.log("⚠️ No ALLOWED_DOMAINS configured. Allowing all domains.");
+    return true;
+  }
+  
+  const allowedDomains = process.env.ALLOWED_DOMAINS.split(',').map(d => d.trim().toLowerCase());
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  
+  if (!emailDomain) return false;
+  
+  const isAllowed = allowedDomains.includes(emailDomain);
+  
+  if (!isAllowed) {
+    console.log(`❌ Domain not allowed: ${emailDomain}. Allowed: ${allowedDomains.join(', ')}`);
+  }
+  
+  return isAllowed;
+};
+
+// ==============================
+// HELPER FUNCTION: Get domain restriction message
+// ==============================
+const getDomainRestrictionMessage = () => {
+  if (!process.env.ALLOWED_DOMAINS) {
+    return null;
+  }
+  const domains = process.env.ALLOWED_DOMAINS.split(',').map(d => d.trim());
+  if (domains.length === 1) {
+    return `Only @${domains[0]} email addresses are allowed to access this system.`;
+  }
+  return `Only emails from ${domains.map(d => `@${d}`).join(', ')} are allowed to access this system.`;
+};
+
+// ==============================
+// SIGN UP (with domain restriction)
 // ==============================
 exports.signup = async (req, res) => {
   try {
@@ -25,6 +63,15 @@ exports.signup = async (req, res) => {
     const cleanName = name.trim();
     const cleanEmail = email.trim().toLowerCase();
     const cleanCompany = company.trim();
+
+    // Check domain restriction
+    if (!isAllowedDomain(cleanEmail)) {
+      const restrictionMessage = getDomainRestrictionMessage();
+      return res.status(403).json({ 
+        error: "Access restricted",
+        message: restrictionMessage || "Your email domain is not authorized to access this system."
+      });
+    }
 
     if (password.length < 8) {
       return res.status(400).json({
@@ -70,7 +117,7 @@ exports.signup = async (req, res) => {
 };
 
 // ==============================
-// LOGIN
+// LOGIN (with domain restriction)
 // ==============================
 exports.login = async (req, res) => {
   try {
@@ -81,6 +128,15 @@ exports.login = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Check domain restriction
+    if (!isAllowedDomain(cleanEmail)) {
+      const restrictionMessage = getDomainRestrictionMessage();
+      return res.status(403).json({ 
+        error: "Access restricted",
+        message: restrictionMessage || "Your email domain is not authorized to access this system."
+      });
+    }
 
     const result = await pool.query(
       `SELECT * FROM app_users WHERE email = $1`,
@@ -129,7 +185,7 @@ exports.login = async (req, res) => {
 };
 
 // ==============================
-// GOOGLE CONNECT / LOGIN
+// GOOGLE CONNECT / LOGIN (with domain restriction)
 // ==============================
 exports.googleConnect = async (req, res) => {
   try {
@@ -141,7 +197,9 @@ exports.googleConnect = async (req, res) => {
         "profile",
         "https://www.googleapis.com/auth/gmail.send"
       ],
-      include_granted_scopes: true
+      include_granted_scopes: true,
+      // Add hd parameter to restrict to specific domain (optional)
+      ...(process.env.GOOGLE_HD ? { hd: process.env.GOOGLE_HD } : {})
     });
 
     return res.redirect(url);
@@ -152,7 +210,7 @@ exports.googleConnect = async (req, res) => {
 };
 
 // ==============================
-// GOOGLE CALLBACK
+// GOOGLE CALLBACK (with domain restriction)
 // ==============================
 exports.googleCallback = async (req, res) => {
   try {
@@ -176,6 +234,12 @@ exports.googleCallback = async (req, res) => {
     const name = (userInfo.data.name || "Google User").trim();
     const email = userInfo.data.email.trim().toLowerCase();
 
+    // Check domain restriction
+    if (!isAllowedDomain(email)) {
+      const restrictionMessage = getDomainRestrictionMessage();
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=domain_not_allowed&message=${encodeURIComponent(restrictionMessage || "Your email domain is not authorized")}`);
+    }
+
     const existingResult = await pool.query(
       `SELECT * FROM app_users WHERE email = $1`,
       [email]
@@ -184,7 +248,6 @@ exports.googleCallback = async (req, res) => {
     let user;
 
     if (existingResult.rows.length > 0) {
-      // Update existing user - REMOVED refresh_token
       const updated = await pool.query(
         `UPDATE app_users
          SET
@@ -199,7 +262,6 @@ exports.googleCallback = async (req, res) => {
 
       user = updated.rows[0];
     } else {
-      // Insert new user - REMOVED refresh_token
       const inserted = await pool.query(
         `INSERT INTO app_users
          (name, email, google_id, google_connected)
@@ -211,7 +273,6 @@ exports.googleCallback = async (req, res) => {
       user = inserted.rows[0];
     }
 
-    // Generate JWT token
     const jwt_token = jwt.sign(
       { user_id: user.user_id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
@@ -221,47 +282,13 @@ exports.googleCallback = async (req, res) => {
     return res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${jwt_token}`);
   } catch (error) {
     console.error("Google callback error:", error);
-    return res.status(500).json({ error: "Google authentication failed" });
+    return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=google_auth_failed`);
   }
 };
 
 // ==============================
-// GET CURRENT USER
+// MICROSOFT CONNECT (with domain restriction)
 // ==============================
-exports.getMe = async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT user_id, name, email, company, role, google_connected
-       FROM app_users
-       WHERE user_id = $1`,
-      [req.user.user_id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    return res.json({ user: result.rows[0] });
-  } catch (error) {
-    console.error("GetMe error:", error);
-    return res.status(500).json({ error: "Server error" });
-  }
-};
-
-// ==============================
-// LOGOUT
-// ==============================
-exports.logout = async (req, res) => {
-  try {
-    // In a stateless JWT system, logout is handled on client side
-    // The client should remove the token from localStorage
-    res.json({ message: "Logged out successfully" });
-  } catch (error) {
-    console.error("Logout error:", error);
-    res.status(500).json({ error: "Server error" });
-  }
-};
-
 exports.microsoftConnect = async (req, res) => {
   try {
     const params = new URLSearchParams({
@@ -273,6 +300,11 @@ exports.microsoftConnect = async (req, res) => {
       prompt: "select_account"
     });
 
+    // Add domain hint if specified
+    if (process.env.MICROSOFT_HD) {
+      params.append("domain_hint", process.env.MICROSOFT_HD);
+    }
+
     const url = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
 
     return res.redirect(url);
@@ -282,6 +314,9 @@ exports.microsoftConnect = async (req, res) => {
   }
 };
 
+// ==============================
+// MICROSOFT CALLBACK (with domain restriction)
+// ==============================
 exports.microsoftCallback = async (req, res) => {
   try {
     const { code } = req.query;
@@ -321,7 +356,13 @@ exports.microsoftCallback = async (req, res) => {
     const email = (msUser.mail || msUser.userPrincipalName || "").toLowerCase();
 
     if (!email) {
-      return res.status(400).json({ error: "Microsoft email not found" });
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=no_email`);
+    }
+
+    // Check domain restriction
+    if (!isAllowedDomain(email)) {
+      const restrictionMessage = getDomainRestrictionMessage();
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=domain_not_allowed&message=${encodeURIComponent(restrictionMessage || "Your email domain is not authorized")}`);
     }
 
     const existingResult = await pool.query(
@@ -366,6 +407,63 @@ exports.microsoftCallback = async (req, res) => {
     return res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${jwt_token}`);
   } catch (error) {
     console.error("Microsoft callback error:", error.response?.data || error);
-    return res.status(500).json({ error: "Microsoft authentication failed" });
+    return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=microsoft_auth_failed`);
+  }
+};
+
+// ==============================
+// GET CURRENT USER
+// ==============================
+exports.getMe = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT user_id, name, email, company, role, google_connected, microsoft_connected
+       FROM app_users
+       WHERE user_id = $1`,
+      [req.user.user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error("GetMe error:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ==============================
+// LOGOUT
+// ==============================
+exports.logout = async (req, res) => {
+  try {
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// ==============================
+// GET ALLOWED DOMAINS INFO (for frontend)
+// ==============================
+exports.getAllowedDomains = async (req, res) => {
+  try {
+    const domains = process.env.ALLOWED_DOMAINS 
+      ? process.env.ALLOWED_DOMAINS.split(',').map(d => d.trim())
+      : [];
+    
+    return res.json({
+      allowedDomains: domains,
+      restricted: domains.length > 0,
+      message: domains.length > 0 
+        ? `Only ${domains.map(d => `@${d}`).join(', ')} email addresses can access this system.`
+        : "All email domains are allowed."
+    });
+  } catch (error) {
+    console.error("Get allowed domains error:", error);
+    return res.status(500).json({ error: "Server error" });
   }
 };

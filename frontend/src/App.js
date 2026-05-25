@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import LoginPage from "./components/LoginPage";
 import AuthSuccess from "./pages/AuthSuccess";
+import AuthError from "./pages/AuthError"; // Add this import
 import API from "./services/api";
 
 // Protected Route Component
@@ -60,6 +61,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth-success" element={<AuthSuccess />} />
+        <Route path="/auth-error" element={<AuthError />} /> {/* Add this route */}
 
         {/* Protected Routes */}
         <Route

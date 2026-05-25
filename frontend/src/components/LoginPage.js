@@ -1,10 +1,11 @@
-// LoginPage.js - Futuristic Dark Theme with Working Microsoft Login
+// LoginPage.js - Futuristic Dark Theme with Working Microsoft Login & Domain Restriction
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import "./LoginPage.css";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -21,6 +22,8 @@ function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [triangles, setTriangles] = useState([]);
+  const [domainRestriction, setDomainRestriction] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
   const features = [
     { icon: "🎯", title: "Smart Training Management", desc: "Automated batch creation and employee assignment" },
@@ -30,6 +33,35 @@ function LoginPage() {
     { icon: "📱", title: "Mobile Ready", desc: "Access your dashboard from anywhere, anytime" },
     { icon: "⚡", title: "Lightning Fast", desc: "Optimized performance for seamless experience" }
   ];
+
+  // Check for auth error from URL (e.g., domain restriction error)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const error = params.get("error");
+    const errorMessage = params.get("message");
+    
+    if (error === "domain_not_allowed") {
+      setAuthError(errorMessage || "Your email domain is not authorized to access this system.");
+    } else if (error === "google_auth_failed") {
+      setAuthError("Google authentication failed. Please try again.");
+    } else if (error === "microsoft_auth_failed") {
+      setAuthError("Microsoft authentication failed. Please try again.");
+    }
+  }, [location]);
+
+  // Fetch domain restrictions from backend
+  useEffect(() => {
+    const fetchDomainRestrictions = async () => {
+      try {
+        const response = await fetch("https://trainingformautomation.onrender.com/api/auth/allowed-domains");
+        const data = await response.json();
+        setDomainRestriction(data);
+      } catch (error) {
+        console.error("Failed to fetch domain restrictions:", error);
+      }
+    };
+    fetchDomainRestrictions();
+  }, []);
 
   // Check if user is already logged in
   useEffect(() => {
@@ -90,7 +122,7 @@ function LoginPage() {
     }
 
     setIsLoading(true);
-    // Redirect to Microsoft OAuth endpoint
+    setAuthError(null);
     window.location.href = "https://trainingformautomation.onrender.com/api/auth/microsoft";
   };
 
@@ -104,6 +136,7 @@ function LoginPage() {
     }
 
     setIsLoading(true);
+    setAuthError(null);
     window.location.href = "https://trainingformautomation.onrender.com/api/auth/google";
   };
 
@@ -113,6 +146,8 @@ function LoginPage() {
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: "" }));
     }
+    // Clear auth error when user starts typing
+    if (authError) setAuthError(null);
   };
 
   const validateForm = () => {
@@ -168,6 +203,7 @@ function LoginPage() {
     }
 
     setIsLoading(true);
+    setAuthError(null);
 
     try {
       const endpoint = isSignUp
@@ -197,7 +233,13 @@ function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Authentication failed");
+        // Handle domain restriction error
+        if (response.status === 403 && data.message) {
+          setAuthError(data.message);
+        } else {
+          throw new Error(data.error || "Authentication failed");
+        }
+        return;
       }
 
       localStorage.setItem("token", data.token);
@@ -217,6 +259,7 @@ function LoginPage() {
     setTimeout(() => {
       setIsSignUp(!isSignUp);
       setFormErrors({});
+      setAuthError(null);
       setFormData({
         name: "",
         email: "",
@@ -253,6 +296,30 @@ function LoginPage() {
           </div>
         ))}
       </div>
+
+      {/* Domain Restriction Banner */}
+      {domainRestriction?.restricted && (
+        <div className="domain-restriction-banner" style={{
+          position: "fixed",
+          top: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(102, 126, 234, 0.2)",
+          backdropFilter: "blur(10px)",
+          border: "1px solid rgba(102, 126, 234, 0.3)",
+          borderRadius: "12px",
+          padding: "8px 20px",
+          fontSize: "13px",
+          color: "#a0a0b0",
+          zIndex: 100,
+          display: "flex",
+          alignItems: "center",
+          gap: "8px"
+        }}>
+          <span>🔒</span>
+          <span>{domainRestriction.message}</span>
+        </div>
+      )}
 
       {/* Grid Background */}
       <div className="grid-background">
@@ -340,6 +407,25 @@ function LoginPage() {
                 </p>
               </div>
 
+              {/* Auth Error Display */}
+              {authError && (
+                <div className="auth-error-banner" style={{
+                  background: "rgba(220, 53, 69, 0.15)",
+                  border: "1px solid rgba(220, 53, 69, 0.3)",
+                  borderRadius: "10px",
+                  padding: "12px 16px",
+                  marginBottom: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  fontSize: "13px",
+                  color: "#f87171"
+                }}>
+                  <span>⚠️</span>
+                  <span>{authError}</span>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className={`auth-form ${isAnimating ? 'animate-out' : 'animate-in'}`}>
                 {isSignUp && (
                   <>
@@ -420,9 +506,6 @@ function LoginPage() {
                     </button>
                   </div>
                   {formErrors.password && <span className="error-message">{formErrors.password}</span>}
-                  {formData.password && !formErrors.password && formData.password.length < 8 && (
-                    <span className="password-strength weak">Password must be at least 8 characters</span>
-                  )}
                 </div>
 
                 {isSignUp && (
@@ -504,7 +587,6 @@ function LoginPage() {
                 <span>Continue with Google</span>
               </button>
 
-              {/* Microsoft Login Button - Fixed with proper Microsoft logo */}
               <button 
                 className={`microsoft-auth-btn ${isLoading ? 'loading' : ''}`} 
                 onClick={handleMicrosoftLogin}
