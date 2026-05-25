@@ -35,7 +35,7 @@ function AuthSuccess() {
     const fetchUserData = async () => {
       try {
         console.log("Fetching user data from /api/auth/me");
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('https://trainingformautomation.onrender.com/api/auth/me', {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
