@@ -1,4 +1,4 @@
-// authController.js - With Domain Restriction
+// authController.js - With Domain Restriction & Redirect for Email/Password
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { google } = require("googleapis");
@@ -16,7 +16,6 @@ const oauth2Client = new google.auth.OAuth2(
 // ==============================
 const isAllowedDomain = (email) => {
   if (!process.env.ALLOWED_DOMAINS) {
-    // If no domains specified, allow all
     console.log("⚠️ No ALLOWED_DOMAINS configured. Allowing all domains.");
     return true;
   }
@@ -50,7 +49,15 @@ const getDomainRestrictionMessage = () => {
 };
 
 // ==============================
-// SIGN UP (with domain restriction)
+// HELPER FUNCTION: Redirect to error page
+// ==============================
+const redirectToError = (res, errorType, message) => {
+  const encodedMessage = encodeURIComponent(message);
+  return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=${errorType}&message=${encodedMessage}`);
+};
+
+// ==============================
+// SIGN UP (with domain restriction - redirect for web, JSON for API)
 // ==============================
 exports.signup = async (req, res) => {
   try {
@@ -67,6 +74,14 @@ exports.signup = async (req, res) => {
     // Check domain restriction
     if (!isAllowedDomain(cleanEmail)) {
       const restrictionMessage = getDomainRestrictionMessage();
+      
+      // Check if request expects JSON (API) or redirect (browser)
+      const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
+      
+      if (acceptsHtml) {
+        return redirectToError(res, "domain_not_allowed", restrictionMessage || "Your email domain is not authorized to access this system.");
+      }
+      
       return res.status(403).json({ 
         error: "Access restricted",
         message: restrictionMessage || "Your email domain is not authorized to access this system."
@@ -117,7 +132,7 @@ exports.signup = async (req, res) => {
 };
 
 // ==============================
-// LOGIN (with domain restriction)
+// LOGIN (with domain restriction - redirect for web, JSON for API)
 // ==============================
 exports.login = async (req, res) => {
   try {
@@ -132,6 +147,14 @@ exports.login = async (req, res) => {
     // Check domain restriction
     if (!isAllowedDomain(cleanEmail)) {
       const restrictionMessage = getDomainRestrictionMessage();
+      
+      // Check if request expects JSON (API) or redirect (browser)
+      const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
+      
+      if (acceptsHtml) {
+        return redirectToError(res, "domain_not_allowed", restrictionMessage || "Your email domain is not authorized to access this system.");
+      }
+      
       return res.status(403).json({ 
         error: "Access restricted",
         message: restrictionMessage || "Your email domain is not authorized to access this system."
@@ -185,7 +208,7 @@ exports.login = async (req, res) => {
 };
 
 // ==============================
-// GOOGLE CONNECT / LOGIN (with domain restriction)
+// GOOGLE CONNECT / LOGIN
 // ==============================
 exports.googleConnect = async (req, res) => {
   try {
@@ -198,14 +221,13 @@ exports.googleConnect = async (req, res) => {
         "https://www.googleapis.com/auth/gmail.send"
       ],
       include_granted_scopes: true,
-      // Add hd parameter to restrict to specific domain (optional)
       ...(process.env.GOOGLE_HD ? { hd: process.env.GOOGLE_HD } : {})
     });
 
     return res.redirect(url);
   } catch (error) {
     console.error("Google connect error:", error);
-    return res.status(500).json({ error: "Failed to start Google auth" });
+    return redirectToError(res, "google_auth_failed", "Failed to start Google authentication");
   }
 };
 
@@ -217,7 +239,7 @@ exports.googleCallback = async (req, res) => {
     const { code } = req.query;
 
     if (!code) {
-      return res.status(400).json({ error: "Authorization code missing" });
+      return redirectToError(res, "google_auth_failed", "Authorization code missing");
     }
 
     const { tokens } = await oauth2Client.getToken(code);
@@ -237,7 +259,7 @@ exports.googleCallback = async (req, res) => {
     // Check domain restriction
     if (!isAllowedDomain(email)) {
       const restrictionMessage = getDomainRestrictionMessage();
-      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=domain_not_allowed&message=${encodeURIComponent(restrictionMessage || "Your email domain is not authorized")}`);
+      return redirectToError(res, "domain_not_allowed", restrictionMessage || "Your email domain is not authorized to access this system.");
     }
 
     const existingResult = await pool.query(
@@ -282,12 +304,12 @@ exports.googleCallback = async (req, res) => {
     return res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${jwt_token}`);
   } catch (error) {
     console.error("Google callback error:", error);
-    return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=google_auth_failed`);
+    return redirectToError(res, "google_auth_failed", "Google authentication failed");
   }
 };
 
 // ==============================
-// MICROSOFT CONNECT (with domain restriction)
+// MICROSOFT CONNECT
 // ==============================
 exports.microsoftConnect = async (req, res) => {
   try {
@@ -300,7 +322,6 @@ exports.microsoftConnect = async (req, res) => {
       prompt: "select_account"
     });
 
-    // Add domain hint if specified
     if (process.env.MICROSOFT_HD) {
       params.append("domain_hint", process.env.MICROSOFT_HD);
     }
@@ -310,7 +331,7 @@ exports.microsoftConnect = async (req, res) => {
     return res.redirect(url);
   } catch (error) {
     console.error("Microsoft connect error:", error);
-    return res.status(500).json({ error: "Failed to start Microsoft auth" });
+    return redirectToError(res, "microsoft_auth_failed", "Failed to start Microsoft authentication");
   }
 };
 
@@ -322,7 +343,7 @@ exports.microsoftCallback = async (req, res) => {
     const { code } = req.query;
 
     if (!code) {
-      return res.status(400).json({ error: "Authorization code missing" });
+      return redirectToError(res, "microsoft_auth_failed", "Authorization code missing");
     }
 
     const tokenResponse = await axios.post(
@@ -356,13 +377,13 @@ exports.microsoftCallback = async (req, res) => {
     const email = (msUser.mail || msUser.userPrincipalName || "").toLowerCase();
 
     if (!email) {
-      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=no_email`);
+      return redirectToError(res, "no_email", "Could not retrieve your email from Microsoft");
     }
 
     // Check domain restriction
     if (!isAllowedDomain(email)) {
       const restrictionMessage = getDomainRestrictionMessage();
-      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=domain_not_allowed&message=${encodeURIComponent(restrictionMessage || "Your email domain is not authorized")}`);
+      return redirectToError(res, "domain_not_allowed", restrictionMessage || "Your email domain is not authorized to access this system.");
     }
 
     const existingResult = await pool.query(
@@ -407,7 +428,7 @@ exports.microsoftCallback = async (req, res) => {
     return res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${jwt_token}`);
   } catch (error) {
     console.error("Microsoft callback error:", error.response?.data || error);
-    return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=microsoft_auth_failed`);
+    return redirectToError(res, "microsoft_auth_failed", "Microsoft authentication failed");
   }
 };
 

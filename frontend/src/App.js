@@ -61,7 +61,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth-success" element={<AuthSuccess />} />
-        <Route path="/auth-error" element={<AuthError />} /> {/* Add this route */}
+        <Route path="/auth-error" element={<AuthError />} />
 
         {/* Protected Routes */}
         <Route

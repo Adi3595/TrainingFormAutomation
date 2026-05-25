@@ -233,13 +233,12 @@ function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle domain restriction error
+        // Handle domain restriction error - REDIRECT to error page
         if (response.status === 403 && data.message) {
-          setAuthError(data.message);
-        } else {
-          throw new Error(data.error || "Authentication failed");
+          navigate(`/auth-error?error=domain_not_allowed&message=${encodeURIComponent(data.message)}`);
+          return;
         }
-        return;
+        throw new Error(data.error || "Authentication failed");
       }
 
       localStorage.setItem("token", data.token);
