@@ -1028,6 +1028,7 @@ exports.uploadEmployeeFeedback = async (req, res) => {
 };
 
 // Upload Manager Feedback CSV (UPDATED - works with only names, no IDs)
+// Upload Manager Feedback CSV (UPDATED for your exact Microsoft Form export format)
 exports.uploadManagerFeedback = async (req, res) => {
   const client = await pool.connect();
 
@@ -1036,14 +1037,22 @@ exports.uploadManagerFeedback = async (req, res) => {
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    if (!req.file.originalname.endsWith('.csv')) {
-      return res.status(400).json({ message: "Please upload a CSV file" });
+    const fileExt = req.file.originalname.split('.').pop().toLowerCase();
+    let data = [];
+
+    if (fileExt === 'csv') {
+      data = await parseCSV(req.file.path);
+    } else if (['xlsx', 'xls'].includes(fileExt)) {
+      const workbook = XLSX.readFile(req.file.path);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      data = XLSX.utils.sheet_to_json(sheet);
+    } else {
+      return res.status(400).json({ message: "Please upload a CSV or Excel (.xlsx, .xls) file" });
     }
 
-    const data = await parseCSV(req.file.path);
-    
     if (data.length === 0) {
-      return res.status(400).json({ message: "CSV file is empty" });
+      return res.status(400).json({ message: "File is empty" });
     }
 
     await client.query("BEGIN");
@@ -1051,172 +1060,446 @@ exports.uploadManagerFeedback = async (req, res) => {
     let insertedCount = 0;
     let skippedCount = 0;
     let cancelledEmailsCount = 0;
+    const errors = [];
 
     for (let row of data) {
-      const manager_id = (row["Manager ID"] || row["manager_id"] || "").trim();
-      const employee_name = (row["Employee Name"] || row["employee_name"] || row["Name"] || row["name"] || "").trim();
-      const training_name = (row["Training Name"] || row["training_name"] || row["Training Program Name"] || "").trim();
-      const rating = (row["Rate the employee's performance improvement"] || row["rating"] || row["Performance Rating"] || "").trim();
-      const comments = (row["Long Answer"] || row["comments"] || row["manager_comments"] || row["Feedback"] || "").trim();
+      try {
+        // Helper function to get column value with multiple possible names
+        const getColumnValue = (row, possibleNames) => {
+          for (const name of possibleNames) {
+            if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+              return row[name];
+            }
+            for (const key of Object.keys(row)) {
+              if (key.toLowerCase() === name.toLowerCase()) {
+                if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
+                  return row[key];
+                }
+              }
+            }
+          }
+          return "";
+        };
 
-      console.log("Processing manager feedback:", {
-        manager_id,
-        employee_name,
-        training_name,
-        rating,
-        comments
-      });
+        // Map columns based on your Microsoft Form export format
+        // Your CSV columns: 
+        // Id, Start time, Completion time, Email, Name, Training Name, Employee Full Name, 
+        // Employee ID Number, Department, Manager Full Name, Manager ID Number, 
+        // Rate the employee's competency level before the training? ( 5 Excellent and 1 Poor ),
+        // Rate the employee's competency level after completing the training? ( 5 Excellent and 1 Poor ),
+        // Is the necessary competence established?,
+        // Competency Matrix Updation Required?,
+        // Do you notice any improvement / progress in the functional area?,
+        // Rate the overall performance improvement? ( 5 Excellent and 1 Poor ),
+        // Additional Feedback / Recommendations
 
-      // Validate required fields
-      if (!manager_id) {
-        console.log("⚠ Skipping row - missing manager_id:", row);
-        skippedCount++;
-        continue;
-      }
+        const training_name = getColumnValue(row, [
+          "Training Name",
+          "TrainingName",
+          "training_name"
+        ]).toString().trim();
 
-      if (!employee_name) {
-        console.log("⚠ Skipping row - missing employee_name:", row);
-        skippedCount++;
-        continue;
-      }
+        const employee_name = getColumnValue(row, [
+          "Employee Full Name",
+          "Employee Name",
+          "Name",
+          "employee_name"
+        ]).toString().trim();
 
-      if (!training_name) {
-        console.log("⚠ Skipping row - missing training_name:", row);
-        skippedCount++;
-        continue;
-      }
+        const employee_code = getColumnValue(row, [
+          "Employee ID Number",
+          "Employee Id",
+          "Employee ID",
+          "employee_id",
+          "employeeId"
+        ]).toString().trim();
 
-      // Get manager by ID
-      const manager = await client.query(
-        `SELECT * FROM managers WHERE manager_id = $1`,
-        [manager_id]
-      );
+        const department = getColumnValue(row, [
+          "Department",
+          "department"
+        ]).toString().trim();
 
-      if (manager.rows.length === 0) {
-        console.log(`⚠ Manager not found with ID: ${manager_id}`);
-        skippedCount++;
-        continue;
-      }
+        const manager_name = getColumnValue(row, [
+          "Manager Full Name",
+          "Manager Name",
+          "manager_name"
+        ]).toString().trim();
 
-      // Get employee by name
-      let employee = await client.query(
-        `SELECT * FROM employees WHERE name ILIKE $1 LIMIT 1`,
-        [`%${employee_name.trim()}%`]
-      );
+        const manager_id = getColumnValue(row, [
+          "Manager ID Number",
+          "Manager Id",
+          "Manager ID",
+          "manager_id",
+          "managerId"
+        ]).toString().trim();
 
-      if (employee.rows.length === 0) {
-        // Try exact match
-        employee = await client.query(
-          `SELECT * FROM employees WHERE name = $1`,
-          [employee_name.trim()]
-        );
-      }
-
-      if (employee.rows.length === 0) {
-        console.log(`⚠ Employee not found with name: "${employee_name}"`);
-        skippedCount++;
-        continue;
-      }
-
-      console.log(`✅ Found employee: ${employee.rows[0].name} (Code: ${employee.rows[0].employee_code})`);
-
-      // Get training by name
-      let training = await client.query(
-        `SELECT * FROM training_programs WHERE training_name ILIKE $1 LIMIT 1`,
-        [`%${training_name.trim()}%`]
-      );
-
-      if (training.rows.length === 0) {
-        // Try exact match
-        training = await client.query(
-          `SELECT * FROM training_programs WHERE training_name = $1`,
-          [training_name.trim()]
-        );
-      }
-
-      if (training.rows.length === 0) {
-        console.log(`⚠ Training not found with name: "${training_name}"`);
-        skippedCount++;
-        continue;
-      }
-
-      const training_id = training.rows[0].training_id;
-      console.log(`✅ Found training: ${training.rows[0].training_name} (ID: ${training_id})`);
-
-      // Insert or update manager feedback
-      const result = await client.query(
-        `INSERT INTO manager_feedback
-        (manager_id, employee_id, training_id, performance_rating, manager_comments, form_completed, submitted_at)
-        VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP)
-        ON CONFLICT (manager_id, employee_id, training_id) DO UPDATE SET
-          performance_rating = EXCLUDED.performance_rating,
-          manager_comments = EXCLUDED.manager_comments,
-          form_completed = EXCLUDED.form_completed,
-          submitted_at = CURRENT_TIMESTAMP
-        RETURNING *`,
-        [
-          manager.rows[0].manager_id,
-          employee.rows[0].employee_id,
-          training_id,
-          rating ? parseInt(rating, 10) : null,
-          comments || null,
-        ]
-      );
-
-      if (result.rows.length > 0) {
-        insertedCount++;
-        console.log(`✅ Feedback recorded for manager: ${manager_id}, employee: ${employee.rows[0].name}, training: ${training.rows[0].training_name}`);
+        // Rating 1: Competency Level BEFORE Training
+        const competencyBeforeRaw = getColumnValue(row, [
+          "Rate the employee's competency level before the training? ( 5 Excellent and 1 Poor )",
+          "Rate the employee's competency level before the training?",
+          "Competency Level Before Training",
+          "competency_before"
+        ]).toString().trim();
         
-        // Cancel any pending emails for this manager-employee-training combination
-        const cancelledEmails = await client.query(
-          `UPDATE scheduled_emails 
-           SET 
-             email_sent = true,
-             email_cancelled = true,
-             cancelled_at = CURRENT_TIMESTAMP,
-             cancellation_reason = 'Feedback submitted by manager via CSV upload',
-             status = 'cancelled',
-             last_attempt = CURRENT_TIMESTAMP,
-             error_message = 'Cancelled: Manager feedback already submitted'
-           WHERE 
-             manager_id = $1 
-             AND employee_id = $2 
-             AND training_id = $3
-             AND email_sent = false
-             AND (email_cancelled IS NOT true OR email_cancelled IS NULL)
-           RETURNING id, email, email_type, scheduled_time`,
-          [manager.rows[0].manager_id, employee.rows[0].employee_id, training_id]
-        );
+        let competencyBefore = null;
+        if (competencyBeforeRaw) {
+          const ratingValue = competencyBeforeRaw.toString().trim();
+          if (!isNaN(ratingValue) && ratingValue >= 1 && ratingValue <= 5) {
+            competencyBefore = parseInt(ratingValue, 10);
+          } else if (ratingValue.toLowerCase() === "excellent") {
+            competencyBefore = 5;
+          } else if (ratingValue.toLowerCase() === "very good") {
+            competencyBefore = 4;
+          } else if (ratingValue.toLowerCase() === "good") {
+            competencyBefore = 3;
+          } else if (ratingValue.toLowerCase() === "fair") {
+            competencyBefore = 2;
+          } else if (ratingValue.toLowerCase() === "poor") {
+            competencyBefore = 1;
+          }
+        }
+
+        // Rating 2: Competency Level AFTER Training
+        const competencyAfterRaw = getColumnValue(row, [
+          "Rate the employee's competency level after completing the training? ( 5 Excellent and 1 Poor )",
+          "Rate the employee's competency level after completing the training?",
+          "Competency Level After Training",
+          "competency_after"
+        ]).toString().trim();
         
-        if (cancelledEmails.rows.length > 0) {
-          cancelledEmailsCount += cancelledEmails.rows.length;
-          console.log(`📧 Cancelled ${cancelledEmails.rows.length} pending email(s) for manager: ${manager_id}, employee: ${employee.rows[0].name}, training: ${training.rows[0].training_name}`);
-          
-          cancelledEmails.rows.forEach(email => {
-            console.log(`   - Cancelled email ID: ${email.id}, Type: ${email.email_type}, Scheduled for: ${email.scheduled_time}`);
-          });
-        } else {
-          console.log(`📧 No pending emails found to cancel`);
+        let competencyAfter = null;
+        if (competencyAfterRaw) {
+          const ratingValue = competencyAfterRaw.toString().trim();
+          if (!isNaN(ratingValue) && ratingValue >= 1 && ratingValue <= 5) {
+            competencyAfter = parseInt(ratingValue, 10);
+          } else if (ratingValue.toLowerCase() === "excellent") {
+            competencyAfter = 5;
+          } else if (ratingValue.toLowerCase() === "very good") {
+            competencyAfter = 4;
+          } else if (ratingValue.toLowerCase() === "good") {
+            competencyAfter = 3;
+          } else if (ratingValue.toLowerCase() === "fair") {
+            competencyAfter = 2;
+          } else if (ratingValue.toLowerCase() === "poor") {
+            competencyAfter = 1;
+          }
+        }
+
+        // Rating 3: Overall Performance Improvement
+        const overallRatingRaw = getColumnValue(row, [
+          "Rate the overall performance improvement? ( 5 Excellent and 1 Poor )",
+          "Rate the overall performance improvement?",
+          "Overall performance improvement",
+          "overall_rating"
+        ]).toString().trim();
+        
+        let overallRating = null;
+        if (overallRatingRaw) {
+          const ratingValue = overallRatingRaw.toString().trim();
+          if (!isNaN(ratingValue) && ratingValue >= 1 && ratingValue <= 5) {
+            overallRating = parseInt(ratingValue, 10);
+          } else if (ratingValue.toLowerCase() === "excellent") {
+            overallRating = 5;
+          } else if (ratingValue.toLowerCase() === "very good") {
+            overallRating = 4;
+          } else if (ratingValue.toLowerCase() === "good") {
+            overallRating = 3;
+          } else if (ratingValue.toLowerCase() === "fair") {
+            overallRating = 2;
+          } else if (ratingValue.toLowerCase() === "poor") {
+            overallRating = 1;
+          }
+        }
+
+        // Yes/No fields
+        const competenceEstablished = getColumnValue(row, [
+          "Is the necessary competence established?",
+          "necessary competence established"
+        ]).toString().trim();
+
+        const matrixUpdation = getColumnValue(row, [
+          "Competency Matrix Updation Required?",
+          "Competency Matrix Updation Required"
+        ]).toString().trim();
+
+        // Descriptive comments
+        const improvementComments = getColumnValue(row, [
+          "Do you notice any improvement / progress in the functional area?",
+          "Do you notice any improvement / progress",
+          "improvement_progress"
+        ]).toString().trim();
+
+        const additionalFeedback = getColumnValue(row, [
+          "Additional Feedback / Recommendations",
+          "Additional Feedback",
+          "Recommendations",
+          "additional_feedback"
+        ]).toString().trim();
+
+        // Combine all comments
+        let comments = "";
+        const commentParts = [];
+        if (improvementComments) commentParts.push(`Improvement/Progress: ${improvementComments}`);
+        if (additionalFeedback) commentParts.push(`Additional Feedback: ${additionalFeedback}`);
+        if (competenceEstablished) commentParts.push(`Competence Established: ${competenceEstablished}`);
+        if (matrixUpdation) commentParts.push(`Matrix Updation Required: ${matrixUpdation}`);
+        comments = commentParts.join(" | ");
+
+        const submittedDate = getColumnValue(row, [
+          "Completion time",
+          "Completion Time",
+          "submitted_at",
+          "submittedAt"
+        ]);
+
+        console.log("Processing manager feedback:", {
+          training_name,
+          employee_name,
+          employee_code,
+          manager_name,
+          manager_id,
+          competencyBefore,
+          competencyAfter,
+          overallRating,
+          comments: comments.substring(0, 100)
+        });
+
+        // Validate required fields
+        if (!training_name) {
+          console.log("⚠ Skipping row - missing training_name");
+          skippedCount++;
+          errors.push({ row: row, error: "Missing training name" });
+          continue;
+        }
+
+        if (!employee_name && !employee_code) {
+          console.log("⚠ Skipping row - missing employee identification");
+          skippedCount++;
+          errors.push({ row: row, error: "Missing employee name or code" });
+          continue;
+        }
+
+        if (!manager_name && !manager_id) {
+          console.log("⚠ Skipping row - missing manager identification");
+          skippedCount++;
+          errors.push({ row: row, error: "Missing manager name or ID" });
+          continue;
+        }
+
+        // Get or create manager (find by ID first, then by name)
+        let manager = null;
+        
+        if (manager_id) {
+          manager = await client.query(
+            `SELECT * FROM managers WHERE manager_id = $1`,
+            [manager_id]
+          );
         }
         
-      } else {
+        if ((!manager || manager.rows.length === 0) && manager_name) {
+          manager = await client.query(
+            `SELECT * FROM managers WHERE name ILIKE $1 LIMIT 1`,
+            [`%${manager_name.trim()}%`]
+          );
+        }
+
+        // If manager not found, create a new one
+        if (!manager || manager.rows.length === 0) {
+          console.log(`⚠ Manager not found. Creating new manager: ${manager_name}`);
+          const newManager = await client.query(
+            `INSERT INTO managers (manager_id, name, department)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (manager_id) DO NOTHING
+             RETURNING *`,
+            [manager_id || `MGR_${Date.now()}`, manager_name, department || null]
+          );
+          
+          if (newManager.rows.length === 0) {
+            // Try to fetch again
+            manager = await client.query(
+              `SELECT * FROM managers WHERE name ILIKE $1 LIMIT 1`,
+              [`%${manager_name.trim()}%`]
+            );
+          } else {
+            manager = newManager;
+          }
+        }
+
+        if (!manager || manager.rows.length === 0) {
+          console.log(`❌ Failed to find or create manager`);
+          skippedCount++;
+          errors.push({ manager_name, manager_id, error: "Manager not found and could not be created" });
+          continue;
+        }
+
+        const managerDbId = manager.rows[0].manager_id;
+
+        // Get employee by code or name
+        let employee = null;
+        
+        if (employee_code) {
+          employee = await client.query(
+            `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE employee_code = $1`,
+            [employee_code]
+          );
+        }
+        
+        if ((!employee || employee.rows.length === 0) && employee_name) {
+          employee = await client.query(
+            `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE name ILIKE $1 LIMIT 1`,
+            [`%${employee_name.trim()}%`]
+          );
+        }
+
+        // If employee not found, create a new one
+        if (!employee || employee.rows.length === 0) {
+          console.log(`⚠ Employee not found. Creating new employee: ${employee_name}`);
+          const newEmployee = await client.query(
+            `INSERT INTO employees (employee_code, name, department, manager_id)
+             VALUES ($1, $2, $3, $4)
+             RETURNING employee_id, employee_code, name`,
+            [employee_code || `EMP_${Date.now()}`, employee_name, department || null, managerDbId]
+          );
+          employee = newEmployee;
+        }
+
+        if (!employee || employee.rows.length === 0) {
+          console.log(`❌ Failed to find or create employee`);
+          skippedCount++;
+          errors.push({ employee_name, employee_code, error: "Employee not found and could not be created" });
+          continue;
+        }
+
+        const employeeDbId = employee.rows[0].employee_id;
+        console.log(`✅ Found/Created employee: ${employee.rows[0].name} (Code: ${employee.rows[0].employee_code})`);
+
+        // Get training by name
+        let training = await client.query(
+          `SELECT training_id, training_name FROM training_programs WHERE training_name ILIKE $1 LIMIT 1`,
+          [`%${training_name.trim()}%`]
+        );
+
+        if (training.rows.length === 0) {
+          // Try exact match
+          training = await client.query(
+            `SELECT training_id, training_name FROM training_programs WHERE training_name = $1`,
+            [training_name.trim()]
+          );
+        }
+
+        if (training.rows.length === 0) {
+          console.log(`⚠ Training not found with name: "${training_name}"`);
+          skippedCount++;
+          errors.push({ training_name, error: "Training not found in database" });
+          continue;
+        }
+
+        const trainingDbId = training.rows[0].training_id;
+        console.log(`✅ Found training: ${training.rows[0].training_name} (ID: ${trainingDbId})`);
+
+        // Use the after-training competency as the main rating
+        const finalRating = competencyAfter || overallRating || competencyBefore;
+
+        // Prepare feedback data
+        if (finalRating !== null || comments) {
+          // Check if feedback already exists
+          const existingFeedback = await client.query(
+            `SELECT * FROM manager_feedback 
+             WHERE manager_id = $1 AND employee_id = $2 AND training_id = $3`,
+            [managerDbId, employeeDbId, trainingDbId]
+          );
+
+          let result;
+          
+          if (existingFeedback.rows.length > 0) {
+            // Update existing feedback
+            const existingComments = existingFeedback.rows[0].manager_comments || "";
+            const newComments = comments ? (existingComments ? existingComments + " | " + comments : comments) : existingComments;
+            
+            result = await client.query(
+              `UPDATE manager_feedback
+               SET performance_rating = COALESCE($1, performance_rating),
+                   manager_comments = $2,
+                   form_completed = true,
+                   submitted_at = CURRENT_TIMESTAMP
+               WHERE manager_id = $3 AND employee_id = $4 AND training_id = $5
+               RETURNING *`,
+              [finalRating, newComments || null, managerDbId, employeeDbId, trainingDbId]
+            );
+            console.log(`📝 Updated existing feedback for employee: ${employee.rows[0].name}`);
+          } else {
+            // Insert new feedback
+            result = await client.query(
+              `INSERT INTO manager_feedback
+               (manager_id, employee_id, training_id, performance_rating, manager_comments, form_completed, submitted_at)
+               VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP)
+               RETURNING *`,
+              [managerDbId, employeeDbId, trainingDbId, finalRating, comments || null]
+            );
+            console.log(`✅ Inserted new feedback for employee: ${employee.rows[0].name}`);
+          }
+
+          if (result.rows.length > 0) {
+            insertedCount++;
+            
+            // Cancel any pending emails for this manager-employee-training combination
+            const cancelledEmails = await client.query(
+              `UPDATE scheduled_emails 
+               SET 
+                 email_sent = true,
+                 email_cancelled = true,
+                 cancelled_at = CURRENT_TIMESTAMP,
+                 cancellation_reason = 'Feedback submitted by manager via CSV upload',
+                 status = 'cancelled',
+                 last_attempt = CURRENT_TIMESTAMP,
+                 error_message = 'Cancelled: Manager feedback already submitted'
+               WHERE 
+                 manager_id = $1 
+                 AND employee_id = $2 
+                 AND training_id = $3
+                 AND email_sent = false
+                 AND (email_cancelled IS NOT true OR email_cancelled IS NULL)
+               RETURNING id, email, email_type, scheduled_time`,
+              [managerDbId, employeeDbId, trainingDbId]
+            );
+            
+            if (cancelledEmails.rows.length > 0) {
+              cancelledEmailsCount += cancelledEmails.rows.length;
+              console.log(`📧 Cancelled ${cancelledEmails.rows.length} pending email(s)`);
+            }
+          } else {
+            skippedCount++;
+          }
+        } else {
+          console.log(`⚠ No rating or comments to save`);
+          skippedCount++;
+        }
+
+      } catch (rowError) {
+        console.error(`❌ Error processing row:`, rowError.message);
         skippedCount++;
+        errors.push({ 
+          row: row, 
+          error: rowError.message 
+        });
       }
     }
 
     await client.query("COMMIT");
     
+    // Clean up uploaded file
     if (req.file.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
 
     res.json({ 
-      message: `✅ Manager feedback uploaded successfully! ${insertedCount} inserted/updated, ${skippedCount} skipped, ${cancelledEmailsCount} pending emails cancelled`,
-      details: { 
+      message: `✅ Manager feedback uploaded successfully!`,
+      summary: { 
         inserted: insertedCount, 
         skipped: skippedCount,
         emailsCancelled: cancelledEmailsCount
-      }
+      },
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined
     });
 
   } catch (err) {
