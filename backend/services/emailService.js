@@ -1,22 +1,30 @@
 // emailService.js
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first"); // 🔥 FIX IPv6 ERROR
+
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 // ==============================
-// 📧 Transporter
+// 📧 Transporter (FIXED)
 // ==============================
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",   // 🔥 avoid "service: gmail" (causes IPv6 DNS issues)
+  port: 587,
+  secure: false, // TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
 // ==============================
 // ✅ Verify transporter
 // ==============================
-transporter.verify((error) => {
+transporter.verify((error, success) => {
   if (error) {
     console.error("❌ Email server error:", error.message);
   } else {
@@ -30,17 +38,23 @@ transporter.verify((error) => {
 const sendEmail = async (to, subject, html) => {
   if (!to) throw new Error("Recipient email missing");
 
-  const mailOptions = {
-    from: `"HR Training System" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    html
-  };
+  try {
+    const mailOptions = {
+      from: `"HR Training System" <${process.env.EMAIL_USER}>`,
+      to,
+      subject,
+      html
+    };
 
-  const info = await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
 
-  console.log(`✅ Email sent to ${to}`);
-  return info;
+    console.log(`✅ Email sent to ${to}`);
+    return info;
+
+  } catch (error) {
+    console.error("❌ Email send failed:", error.message);
+    throw error;
+  }
 };
 
 // ==============================
@@ -58,52 +72,28 @@ exports.sendEmployeeTrainingEmail = async (
   const senderName = senderUser?.name || "HR Training Team";
   const senderEmail = senderUser?.email || process.env.EMAIL_USER;
 
-  const safeEmployeeName = employeeName || "Employee";
-  const safeTrainingName = trainingName || "Training";
-
-  const subject = `Training Feedback Required - ${safeTrainingName}`;
+  const subject = `Training Feedback Required - ${trainingName || "Training"}`;
 
   const html = `
-    <div style="font-family: Arial, sans-serif; background:#f8f9fa; padding:24px;">
-      <div style="max-width:600px; margin:auto; background:white; padding:24px; border-radius:10px; border:1px solid #e5e7eb;">
-        
-        <h2 style="color:#111827;">🎓 Training Feedback Required</h2>
+    <div style="font-family: Arial; background:#f8f9fa; padding:24px;">
+      <div style="max-width:600px; margin:auto; background:white; padding:24px; border-radius:10px;">
 
-        <p>Hello <strong>${safeEmployeeName}</strong>,</p>
+        <h2>🎓 Training Feedback Required</h2>
 
-        <p>
-          You have been assigned for the training:
-          <strong>${safeTrainingName}</strong>
-        </p>
+        <p>Hello <b>${employeeName || "Employee"}</b>,</p>
 
-        <p>
-          Please complete your employee feedback form using the button below.
-        </p>
+        <p>You have been assigned: <b>${trainingName || "Training"}</b></p>
 
         <a href="${formLink}"
-          style="display:inline-block;
-                 background:#667eea;
-                 color:white;
-                 padding:12px 24px;
-                 text-decoration:none;
-                 border-radius:8px;
-                 margin-top:12px;
-                 font-weight:600;">
+          style="display:inline-block;background:#667eea;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;">
           Fill Feedback Form
         </a>
 
-        <hr style="margin:24px 0; border:none; border-top:1px solid #e5e7eb;" />
+        <hr/>
 
-        <p style="font-size:13px; color:#6b7280;">
-          Requested by: <strong>${senderName}</strong><br/>
-          Reply to:
-          <a href="mailto:${senderEmail}" style="color:#667eea;">
-            ${senderEmail}
-          </a>
-        </p>
-
-        <p style="font-size:12px; color:#9ca3af;">
-          Automated email from HR Training Management System.
+        <p style="font-size:12px;color:#666;">
+          Requested by: <b>${senderName}</b><br/>
+          Reply: <a href="mailto:${senderEmail}">${senderEmail}</a>
         </p>
 
       </div>
@@ -130,52 +120,37 @@ exports.sendManagerEmail = async (
   const senderName = senderUser?.name || "HR Training System";
   const senderEmail = senderUser?.email || process.env.EMAIL_USER;
 
-  const safeEmployeeName = employeeName || "Employee";
-  const safeTrainingName = trainingName || "Training";
-
   const isReminder = emailType === "reminder";
 
   const subject = isReminder
-    ? `Reminder: Feedback Pending - ${safeTrainingName}`
-    : `Manager Feedback Required - ${safeTrainingName}`;
+    ? `🔔 Reminder: Feedback Pending - ${trainingName}`
+    : `📊 Manager Feedback Required - ${trainingName}`;
 
   const html = `
-    <div style="font-family: Arial, sans-serif; background:#f8f9fa; padding:24px;">
-      <div style="max-width:600px; margin:auto; background:white; padding:24px; border-radius:10px; border:1px solid #e5e7eb;">
+    <div style="font-family: Arial; background:#f8f9fa; padding:24px;">
+      <div style="max-width:600px; margin:auto; background:white; padding:24px; border-radius:10px;">
 
-        <h2 style="color:#111827;">
-          ${isReminder ? "🔔 Reminder: Feedback Still Required" : "📊 Manager Feedback Required"}
-        </h2>
+        <h2>${isReminder ? "🔔 Reminder" : "📊 Manager Feedback Required"}</h2>
 
         <p>
           ${isReminder
-            ? `Reminder to submit feedback for ${safeEmployeeName}.`
-            : `${safeEmployeeName} completed the training. Please submit feedback.`
-          }
+            ? `Reminder: submit feedback for ${employeeName}`
+            : `${employeeName} completed training. Please submit feedback.`}
         </p>
 
-        <p><b>Employee:</b> ${safeEmployeeName}</p>
-        <p><b>Training:</b> ${safeTrainingName}</p>
+        <p><b>Employee:</b> ${employeeName}</p>
+        <p><b>Training:</b> ${trainingName}</p>
 
         <a href="${formLink}"
-          style="display:inline-block;
-                 background:${isReminder ? "#dc3545" : "#28a745"};
-                 color:white;
-                 padding:12px 24px;
-                 text-decoration:none;
-                 border-radius:8px;
-                 margin-top:12px;">
+          style="display:inline-block;background:${isReminder ? "#dc3545" : "#28a745"};color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;">
           Submit Feedback
         </a>
 
-        <hr style="margin:24px 0; border:none; border-top:1px solid #e5e7eb;" />
+        <hr/>
 
-        <p style="font-size:13px; color:#6b7280;">
-          Requested by: <strong>${senderName}</strong><br/>
-          Reply to:
-          <a href="mailto:${senderEmail}" style="color:#667eea;">
-            ${senderEmail}
-          </a>
+        <p style="font-size:12px;color:#666;">
+          Requested by: <b>${senderName}</b><br/>
+          Reply: <a href="mailto:${senderEmail}">${senderEmail}</a>
         </p>
 
       </div>
