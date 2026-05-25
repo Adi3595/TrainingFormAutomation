@@ -10,7 +10,12 @@
   </url>
 
   <url>
+    <loc>https://trainingformautomation.onrender.com/auth-success</loc>
+  </url>
+
+  <url>
     <loc>https://trainingformautomation.onrender.com/dashboard</loc>
   </url>
 
 </urlset>
+
