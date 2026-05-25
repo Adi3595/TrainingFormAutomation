@@ -1,4 +1,4 @@
-// AuthSuccess.js - Dark Futuristic Theme with Floating Animations
+// AuthSuccess.js - Full Screen Dark Futuristic Theme with Floating Animations
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -9,27 +9,26 @@ function AuthSuccess() {
   const [errorDetails, setErrorDetails] = useState(null);
   const [floatingElements, setFloatingElements] = useState([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [glowIntensity, setGlowIntensity] = useState(0);
 
   // Create floating squares/particles on mount
   useEffect(() => {
     const elements = [];
     const shapes = ["square", "circle", "triangle", "diamond"];
-    const colors = ["#667eea", "#764ba2", "#4facfe", "#00f2fe", "#30cfd0", "#a8edea"];
+    const colors = ["#667eea", "#764ba2", "#4facfe", "#00f2fe", "#30cfd0", "#a8edea", "#f093fb", "#fa709a"];
     
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 80; i++) {
       elements.push({
         id: i,
         x: Math.random() * 100,
         y: Math.random() * 100,
-        size: 15 + Math.random() * 70,
-        delay: Math.random() * 15,
-        duration: 10 + Math.random() * 20,
+        size: 10 + Math.random() * 60,
+        delay: Math.random() * 20,
+        duration: 8 + Math.random() * 25,
         rotation: Math.random() * 360,
-        opacity: 0.02 + Math.random() * 0.08,
+        opacity: 0.02 + Math.random() * 0.1,
         color: colors[Math.floor(Math.random() * colors.length)],
         shape: shapes[Math.floor(Math.random() * shapes.length)],
-        speed: 0.3 + Math.random() * 1
+        speed: 0.3 + Math.random() * 1.5
       });
     }
     setFloatingElements(elements);
@@ -39,12 +38,12 @@ function AuthSuccess() {
   useEffect(() => {
     const handleMouseMove = (e) => {
       setMousePosition({
-        x: (e.clientX / window.innerWidth - 0.5) * 15,
-        y: (e.clientY / window.innerHeight - 0.5) * 15
+        x: (e.clientX / window.innerWidth - 0.5) * 20,
+        y: (e.clientY / window.innerHeight - 0.5) * 20
       });
     };
-    window.addEventListener('mouse-move', handleMouseMove);
-    return () => window.removeEventListener('mouse-move', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   useEffect(() => {
@@ -124,7 +123,6 @@ function AuthSuccess() {
           console.log("User data received:", data.user);
           localStorage.setItem("user", JSON.stringify(data.user));
           
-          // Small delay to ensure storage is complete
           setTimeout(() => {
             console.log("Redirecting to dashboard...");
             navigate("/dashboard", { replace: true });
@@ -133,7 +131,6 @@ function AuthSuccess() {
           const errorData = await response.json().catch(() => ({}));
           console.error("Failed to fetch user data:", response.status, errorData);
           
-          // Check if error is due to domain restriction
           if (response.status === 403 && errorData.message) {
             setError("Access Restricted");
             setErrorDetails(errorData.message);
@@ -165,15 +162,15 @@ function AuthSuccess() {
   const getShapeSVG = (shape, color) => {
     switch(shape) {
       case "square":
-        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       case "circle":
-        return <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       case "triangle":
-        return <polygon points="50,5 95,90 5,90" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <polygon points="50,5 95,90 5,90" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       case "diamond":
-        return <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       default:
-        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
     }
   };
 
@@ -181,6 +178,7 @@ function AuthSuccess() {
     return (
       <div style={{
         minHeight: "100vh",
+        width: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -197,7 +195,7 @@ function AuthSuccess() {
           left: "10%",
           width: "50%",
           height: "50%",
-          background: "radial-gradient(circle, rgba(220, 53, 69, 0.1) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(220, 53, 69, 0.12) 0%, transparent 70%)",
           animation: "pulse 8s ease-in-out infinite",
           pointerEvents: "none"
         }} />
@@ -224,7 +222,7 @@ function AuthSuccess() {
               height: `${el.size}px`,
               animation: `float ${el.duration}s ease-in-out infinite`,
               animationDelay: `${el.delay}s`,
-              transform: `rotate(${el.rotation}deg)`,
+              transform: `rotate(${el.rotation}deg) translate(${mousePosition.x * el.speed}px, ${mousePosition.y * el.speed}px)`,
               pointerEvents: "none",
               zIndex: 0,
               opacity: el.opacity
@@ -243,7 +241,7 @@ function AuthSuccess() {
           left: 0,
           width: "100%",
           height: "100%",
-          opacity: 0.03,
+          opacity: 0.04,
           pointerEvents: "none",
           zIndex: 0
         }}>
@@ -256,6 +254,19 @@ function AuthSuccess() {
           <rect width="100%" height="100%" fill="url(#grid)" />
         </svg>
 
+        {/* Scanning Line Effect */}
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "2px",
+          background: "linear-gradient(90deg, transparent, #dc3545, #c82333, #dc3545, transparent)",
+          animation: "scan 4s linear infinite",
+          opacity: 0.5,
+          pointerEvents: "none"
+        }} />
+
         {/* Main Card */}
         <div style={{
           maxWidth: "500px",
@@ -263,30 +274,55 @@ function AuthSuccess() {
           background: "rgba(10, 10, 18, 0.85)",
           backdropFilter: "blur(20px)",
           borderRadius: "32px",
-          border: "1px solid rgba(220, 53, 69, 0.2)",
+          border: "1px solid rgba(220, 53, 69, 0.25)",
           padding: "48px 40px",
           textAlign: "center",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(220, 53, 69, 0.1)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(220, 53, 69, 0.1), 0 0 30px rgba(220, 53, 69, 0.1)",
           position: "relative",
           zIndex: 10,
-          animation: "fadeInUp 0.6s ease-out"
+          animation: "fadeInUp 0.6s ease-out",
+          transform: `translate(${mousePosition.x * 0.1}px, ${mousePosition.y * 0.1}px)`
         }}>
           <div style={{
-            fontSize: "64px",
+            position: "absolute",
+            top: -1,
+            left: -1,
+            right: -1,
+            bottom: -1,
+            background: "linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(118, 75, 162, 0.05))",
+            borderRadius: "32px",
+            zIndex: -1,
+            filter: "blur(10px)"
+          }} />
+
+          <div style={{
+            fontSize: "80px",
             marginBottom: "24px",
-            animation: "shake 0.5s ease-in-out"
+            animation: "shake 0.5s ease-in-out",
+            filter: "drop-shadow(0 0 20px rgba(220, 53, 69, 0.4))"
           }}>
             {error === "Access Restricted" ? "🔒" : "⚠️"}
           </div>
           
           <h1 style={{
-            fontSize: "28px",
-            fontWeight: "600",
-            marginBottom: "12px",
-            color: error === "Access Restricted" ? "#f87171" : "#e0e0e8"
-          }}>{error}</h1>
+            fontSize: "32px",
+            fontWeight: "700",
+            background: "linear-gradient(135deg, #fff, #a0a0b0)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            marginBottom: "16px",
+            letterSpacing: "-0.5px"
+          }}>
+            {error}
+          </h1>
           
-          <p style={{ color: "#a0a0b0", marginBottom: "24px", lineHeight: "1.6" }}>
+          <p style={{
+            fontSize: "16px",
+            color: "#a0a0b0",
+            marginBottom: "28px",
+            lineHeight: "1.6"
+          }}>
             {errorDetails}
           </p>
           
@@ -294,23 +330,68 @@ function AuthSuccess() {
             <div style={{
               background: "rgba(220, 53, 69, 0.08)",
               borderRadius: "16px",
-              padding: "16px",
+              padding: "20px",
               marginBottom: "28px",
               textAlign: "left",
               border: "1px solid rgba(220, 53, 69, 0.15)"
             }}>
-              <p style={{ fontSize: "14px", color: "#a0a0b0", margin: 0 }}>
-                💡 Please contact your system administrator if you believe you should have access.
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <span style={{ fontSize: "24px" }}>💡</span>
+                <p style={{ fontSize: "14px", color: "#c0c0d0", margin: 0, fontWeight: "500" }}>
+                  What does this mean?
+                </p>
+              </div>
+              <p style={{
+                fontSize: "14px",
+                color: "#a0a0b0",
+                margin: "0 0 12px 36px",
+                lineHeight: "1.5"
+              }}>
+                This system is restricted to specific email domains only. 
+                Your email domain is not on the approved list.
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+                <span style={{ fontSize: "24px" }}>🔧</span>
+                <p style={{ fontSize: "14px", color: "#c0c0d0", margin: 0, fontWeight: "500" }}>
+                  What can you do?
+                </p>
+              </div>
+              <p style={{
+                fontSize: "14px",
+                color: "#a0a0b0",
+                margin: "0 0 0 36px",
+                lineHeight: "1.5"
+              }}>
+                Contact your system administrator to request access or use an approved email address.
               </p>
             </div>
           )}
           
+          {/* Progress Bar for redirect */}
+          <div style={{
+            marginBottom: "32px",
+            position: "relative"
+          }}>
+            <div style={{
+              height: "4px",
+              background: "rgba(255, 255, 255, 0.1)",
+              borderRadius: "2px",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                width: "100%",
+                height: "100%",
+                background: "linear-gradient(90deg, #dc3545, #c82333)",
+                borderRadius: "2px",
+                animation: "progressShrink 5s linear forwards"
+              }} />
+            </div>
+          </div>
+          
           <button
             onClick={() => navigate("/login", { replace: true })}
             style={{
-              background: error === "Access Restricted" 
-                ? "linear-gradient(135deg, #dc3545, #c82333)"
-                : "linear-gradient(135deg, #667eea, #764ba2)",
+              background: "linear-gradient(135deg, #dc3545, #c82333)",
               border: "none",
               borderRadius: "14px",
               padding: "14px 28px",
@@ -319,22 +400,40 @@ function AuthSuccess() {
               color: "white",
               cursor: "pointer",
               transition: "all 0.3s ease",
-              width: "100%"
+              width: "100%",
+              position: "relative",
+              overflow: "hidden"
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(0,0,0,0.3)";
+              e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(220, 53, 69, 0.4)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.boxShadow = "none";
             }}
           >
-            Return to Login
+            <span style={{ position: "relative", zIndex: 1 }}>Return to Login</span>
+            <div style={{
+              position: "absolute",
+              top: 0,
+              left: "-100%",
+              width: "100%",
+              height: "100%",
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+              transition: "left 0.5s ease"
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.left = "100%"}
+            onMouseLeave={(e) => e.currentTarget.style.left = "-100%"} />
           </button>
           
-          <p style={{ fontSize: "12px", color: "#4a4a5a", marginTop: "24px" }}>
-            Redirecting to login page...
+          <p style={{
+            fontSize: "12px",
+            color: "#4a4a5a",
+            marginTop: "24px",
+            letterSpacing: "0.3px"
+          }}>
+            HR Training Management System • Secure Authentication
           </p>
         </div>
 
@@ -356,14 +455,24 @@ function AuthSuccess() {
             25% { transform: translateX(-10px); }
             75% { transform: translateX(10px); }
           }
+          @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+          @keyframes progressShrink {
+            from { width: 100%; }
+            to { width: 0%; }
+          }
         `}</style>
       </div>
     );
   }
 
+  // Success state - loading animation
   return (
     <div style={{
       minHeight: "100vh",
+      width: "100%",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -378,8 +487,8 @@ function AuthSuccess() {
         position: "absolute",
         top: "20%",
         left: "15%",
-        width: "40%",
-        height: "40%",
+        width: "45%",
+        height: "45%",
         background: "radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%)",
         animation: "pulse 6s ease-in-out infinite",
         pointerEvents: "none"
@@ -388,10 +497,21 @@ function AuthSuccess() {
         position: "absolute",
         bottom: "20%",
         right: "15%",
-        width: "35%",
-        height: "35%",
+        width: "40%",
+        height: "40%",
         background: "radial-gradient(circle, rgba(118, 75, 162, 0.15) 0%, transparent 70%)",
         animation: "pulse 8s ease-in-out infinite reverse",
+        pointerEvents: "none"
+      }} />
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        width: "60%",
+        height: "60%",
+        transform: "translate(-50%, -50%)",
+        background: "radial-gradient(circle, rgba(0, 255, 255, 0.05) 0%, transparent 70%)",
+        animation: "pulse 10s ease-in-out infinite",
         pointerEvents: "none"
       }} />
 
@@ -407,7 +527,7 @@ function AuthSuccess() {
             height: `${el.size}px`,
             animation: `float ${el.duration}s ease-in-out infinite`,
             animationDelay: `${el.delay}s`,
-            transform: `rotate(${el.rotation}deg)`,
+            transform: `rotate(${el.rotation}deg) translate(${mousePosition.x * el.speed}px, ${mousePosition.y * el.speed}px)`,
             pointerEvents: "none",
             zIndex: 0,
             opacity: el.opacity
@@ -426,14 +546,14 @@ function AuthSuccess() {
         left: 0,
         width: "100%",
         height: "100%",
-        opacity: 0.04,
+        opacity: 0.05,
         pointerEvents: "none",
         zIndex: 0
       }}>
         <defs>
-          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="0.5"/>
-            <circle cx="0" cy="0" r="1.5" fill="rgba(255,255,255,0.3)"/>
+          <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="white" strokeWidth="0.5"/>
+            <circle cx="0" cy="0" r="1.5" fill="rgba(255,255,255,0.4)"/>
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
@@ -459,42 +579,80 @@ function AuthSuccess() {
         background: "rgba(10, 10, 18, 0.85)",
         backdropFilter: "blur(20px)",
         borderRadius: "32px",
-        border: "1px solid rgba(102, 126, 234, 0.2)",
+        border: "1px solid rgba(102, 126, 234, 0.25)",
         padding: "56px 48px",
         textAlign: "center",
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(102, 126, 234, 0.1)",
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(102, 126, 234, 0.1), 0 0 30px rgba(102, 126, 234, 0.1)",
         position: "relative",
         zIndex: 10,
-        animation: "fadeInUp 0.6s ease-out"
+        animation: "fadeInUp 0.6s ease-out",
+        transform: `translate(${mousePosition.x * 0.1}px, ${mousePosition.y * 0.1}px)`
       }}>
-        {/* Spinner */}
         <div style={{
-          width: "60px",
-          height: "60px",
-          margin: "0 auto 24px",
+          position: "absolute",
+          top: -1,
+          left: -1,
+          right: -1,
+          bottom: -1,
+          background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.05))",
+          borderRadius: "32px",
+          zIndex: -1,
+          filter: "blur(10px)"
+        }} />
+
+        {/* Animated Spinner */}
+        <div style={{
+          width: "70px",
+          height: "70px",
+          margin: "0 auto 28px",
           position: "relative"
         }}>
+          {/* Outer ring */}
           <div style={{
             position: "absolute",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            border: "3px solid rgba(102, 126, 234, 0.1)",
+            border: "3px solid rgba(102, 126, 234, 0.15)",
             borderRadius: "50%",
             borderTopColor: "#667eea",
             animation: "spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite"
           }} />
+          {/* Middle ring */}
           <div style={{
             position: "absolute",
-            top: 8,
-            left: 8,
-            right: 8,
-            bottom: 8,
-            border: "2px solid rgba(118, 75, 162, 0.1)",
+            top: 10,
+            left: 10,
+            right: 10,
+            bottom: 10,
+            border: "2px solid rgba(118, 75, 162, 0.15)",
             borderRadius: "50%",
             borderTopColor: "#764ba2",
             animation: "spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite reverse"
+          }} />
+          {/* Inner ring */}
+          <div style={{
+            position: "absolute",
+            top: 20,
+            left: 20,
+            right: 20,
+            bottom: 20,
+            border: "2px solid rgba(79, 172, 254, 0.15)",
+            borderRadius: "50%",
+            borderTopColor: "#4facfe",
+            animation: "spin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite"
+          }} />
+          {/* Center pulse */}
+          <div style={{
+            position: "absolute",
+            top: 28,
+            left: 28,
+            right: 28,
+            bottom: 28,
+            background: "radial-gradient(circle, #667eea, #764ba2)",
+            borderRadius: "50%",
+            animation: "pulseGlow 1.5s ease-in-out infinite"
           }} />
         </div>
         
@@ -514,7 +672,8 @@ function AuthSuccess() {
         <p style={{
           fontSize: "15px",
           color: "#a0a0b0",
-          lineHeight: "1.6"
+          lineHeight: "1.6",
+          marginBottom: "24px"
         }}>
           Please wait while we redirect you to your dashboard
         </p>
@@ -523,15 +682,14 @@ function AuthSuccess() {
         <div style={{
           display: "flex",
           justifyContent: "center",
-          gap: "8px",
-          marginTop: "24px"
+          gap: "10px"
         }}>
           {[0, 1, 2].map((i) => (
             <div
               key={i}
               style={{
-                width: "6px",
-                height: "6px",
+                width: "8px",
+                height: "8px",
                 borderRadius: "50%",
                 background: "#667eea",
                 animation: `bounce 1.4s ease-in-out infinite ${i * 0.2}s`
@@ -539,6 +697,16 @@ function AuthSuccess() {
             />
           ))}
         </div>
+
+        {/* Footer text */}
+        <p style={{
+          fontSize: "11px",
+          color: "#4a4a5a",
+          marginTop: "32px",
+          letterSpacing: "0.3px"
+        }}>
+          HR Training Management System
+        </p>
       </div>
 
       <style>{`
@@ -550,8 +718,12 @@ function AuthSuccess() {
           50% { transform: translateY(-30px) rotate(10deg); }
         }
         @keyframes pulse {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.6; transform: scale(1.1); }
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.1); }
+        }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.1); }
         }
         @keyframes scan {
           0% { transform: translateX(-100%); }
@@ -562,7 +734,7 @@ function AuthSuccess() {
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes bounce {
-          0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+          0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
           40% { transform: scale(1.2); opacity: 1; }
         }
       `}</style>

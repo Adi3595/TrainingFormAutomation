@@ -1,4 +1,4 @@
-// AuthError.js - Dark Futuristic Theme with Floating Animations
+// AuthError.js - Full Screen Dark Futuristic Theme with Floating Animations
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -10,7 +10,6 @@ function AuthError() {
   const [countdown, setCountdown] = useState(5);
   const [floatingElements, setFloatingElements] = useState([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [glowIntensity, setGlowIntensity] = useState(0);
 
   // Create floating squares/particles on mount
   useEffect(() => {
@@ -18,19 +17,19 @@ function AuthError() {
     const shapes = ["square", "circle", "triangle", "diamond"];
     const colors = ["#667eea", "#764ba2", "#f093fb", "#4facfe", "#00f2fe", "#fa709a", "#fee140", "#30cfd0", "#a8edea", "#fed6e3"];
     
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
       elements.push({
         id: i,
         x: Math.random() * 100,
         y: Math.random() * 100,
-        size: 15 + Math.random() * 80,
+        size: 10 + Math.random() * 60,
         delay: Math.random() * 20,
-        duration: 12 + Math.random() * 25,
+        duration: 8 + Math.random() * 25,
         rotation: Math.random() * 360,
-        opacity: 0.02 + Math.random() * 0.08,
+        opacity: 0.02 + Math.random() * 0.1,
         color: colors[Math.floor(Math.random() * colors.length)],
         shape: shapes[Math.floor(Math.random() * shapes.length)],
-        speed: 0.5 + Math.random() * 1.5
+        speed: 0.3 + Math.random() * 1.5
       });
     }
     setFloatingElements(elements);
@@ -43,21 +42,9 @@ function AuthError() {
         x: (e.clientX / window.innerWidth - 0.5) * 20,
         y: (e.clientY / window.innerHeight - 0.5) * 20
       });
-      setGlowIntensity(Math.sqrt(
-        Math.pow(e.clientX / window.innerWidth - 0.5, 2) + 
-        Math.pow(e.clientY / window.innerHeight - 0.5, 2)
-      ));
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
-
-  // Glow animation interval
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setGlowIntensity(prev => 0.3 + Math.sin(Date.now() / 1000) * 0.2);
-    }, 100);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -114,21 +101,22 @@ function AuthError() {
   const getShapeSVG = (shape, color) => {
     switch(shape) {
       case "square":
-        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       case "circle":
-        return <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       case "triangle":
-        return <polygon points="50,5 95,90 5,90" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <polygon points="50,5 95,90 5,90" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       case "diamond":
-        return <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
       default:
-        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.3"/>;
+        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
     }
   };
 
   return (
     <div style={{
       minHeight: "100vh",
+      width: "100%",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
@@ -145,7 +133,7 @@ function AuthError() {
         left: "10%",
         width: "50%",
         height: "50%",
-        background: "radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%)",
+        background: "radial-gradient(circle, rgba(220, 53, 69, 0.12) 0%, transparent 70%)",
         animation: "pulse 8s ease-in-out infinite",
         pointerEvents: "none"
       }} />
@@ -155,8 +143,19 @@ function AuthError() {
         right: "10%",
         width: "40%",
         height: "40%",
-        background: "radial-gradient(circle, rgba(118, 75, 162, 0.15) 0%, transparent 70%)",
+        background: "radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%)",
         animation: "pulse 6s ease-in-out infinite reverse",
+        pointerEvents: "none"
+      }} />
+      <div style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        width: "60%",
+        height: "60%",
+        transform: "translate(-50%, -50%)",
+        background: "radial-gradient(circle, rgba(220, 53, 69, 0.05) 0%, transparent 70%)",
+        animation: "pulse 10s ease-in-out infinite",
         pointerEvents: "none"
       }} />
 
@@ -191,7 +190,7 @@ function AuthError() {
         left: 0,
         width: "100%",
         height: "100%",
-        opacity: 0.03,
+        opacity: 0.04,
         pointerEvents: "none",
         zIndex: 0
       }}>
@@ -211,7 +210,7 @@ function AuthError() {
         left: 0,
         right: 0,
         height: "2px",
-        background: "linear-gradient(90deg, transparent, #667eea, #764ba2, #667eea, transparent)",
+        background: "linear-gradient(90deg, transparent, #dc3545, #c82333, #dc3545, transparent)",
         animation: "scan 4s linear infinite",
         opacity: 0.5,
         pointerEvents: "none"
@@ -224,10 +223,10 @@ function AuthError() {
         background: "rgba(10, 10, 18, 0.85)",
         backdropFilter: "blur(20px)",
         borderRadius: "32px",
-        border: "1px solid rgba(102, 126, 234, 0.2)",
+        border: "1px solid rgba(220, 53, 69, 0.25)",
         padding: "48px 40px",
         textAlign: "center",
-        boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(102, 126, 234, 0.1), 0 0 30px rgba(102, 126, 234, ${0.05 + glowIntensity * 0.05})`,
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(220, 53, 69, 0.1), 0 0 30px rgba(220, 53, 69, 0.1)",
         position: "relative",
         zIndex: 10,
         animation: "fadeInUp 0.6s ease-out",
@@ -240,7 +239,7 @@ function AuthError() {
           left: -1,
           right: -1,
           bottom: -1,
-          background: "linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.05))",
+          background: "linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(118, 75, 162, 0.05))",
           borderRadius: "32px",
           zIndex: -1,
           filter: "blur(10px)"
@@ -251,7 +250,7 @@ function AuthError() {
           fontSize: "80px",
           marginBottom: "24px",
           display: "inline-block",
-          animation: "bounce 1s ease-in-out infinite",
+          animation: "shake 0.5s ease-in-out",
           filter: error === "Access Restricted" 
             ? "drop-shadow(0 0 20px rgba(220, 53, 69, 0.5))" 
             : "drop-shadow(0 0 20px rgba(102, 126, 234, 0.5))"
@@ -283,12 +282,12 @@ function AuthError() {
         
         {error === "Access Restricted" && (
           <div style={{
-            background: "rgba(102, 126, 234, 0.08)",
+            background: "rgba(220, 53, 69, 0.08)",
             borderRadius: "16px",
             padding: "20px",
             marginBottom: "28px",
             textAlign: "left",
-            border: "1px solid rgba(102, 126, 234, 0.15)"
+            border: "1px solid rgba(220, 53, 69, 0.15)"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
               <span style={{ fontSize: "24px" }}>💡</span>
@@ -336,7 +335,7 @@ function AuthError() {
             <div style={{
               width: `${(countdown / 5) * 100}%`,
               height: "100%",
-              background: "linear-gradient(90deg, #667eea, #764ba2)",
+              background: "linear-gradient(90deg, #dc3545, #c82333)",
               borderRadius: "2px",
               transition: "width 0.5s linear",
               animation: "pulseGlow 1s ease-in-out infinite"
@@ -347,14 +346,14 @@ function AuthError() {
             color: "#6b7280",
             marginTop: "12px"
           }}>
-            Redirecting to login page in <span style={{ color: "#667eea", fontWeight: "600" }}>{countdown}</span> seconds...
+            Redirecting to login page in <span style={{ color: "#dc3545", fontWeight: "600" }}>{countdown}</span> seconds...
           </p>
         </div>
         
         <button
           onClick={() => navigate("/login", { replace: true })}
           style={{
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            background: "linear-gradient(135deg, #dc3545 0%, #c82333 100%)",
             border: "none",
             borderRadius: "14px",
             padding: "14px 28px",
@@ -369,7 +368,7 @@ function AuthError() {
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(102, 126, 234, 0.4)";
+            e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(220, 53, 69, 0.4)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
@@ -414,11 +413,11 @@ function AuthError() {
         
         @keyframes pulse {
           0%, 100% {
-            opacity: 0.3;
+            opacity: 0.2;
             transform: scale(1);
           }
           50% {
-            opacity: 0.6;
+            opacity: 0.5;
             transform: scale(1.1);
           }
         }
@@ -443,12 +442,15 @@ function AuthError() {
           }
         }
         
-        @keyframes bounce {
+        @keyframes shake {
           0%, 100% {
-            transform: translateY(0);
+            transform: translateX(0);
           }
-          50% {
-            transform: translateY(-10px);
+          25% {
+            transform: translateX(-10px);
+          }
+          75% {
+            transform: translateX(10px);
           }
         }
         
