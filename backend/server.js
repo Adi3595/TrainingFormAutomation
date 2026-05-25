@@ -4,7 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 // 🔥 Import scheduler (email sender)
-require("./jobs/Scheduler");
+require("./jobs/scheduler");
 require("./jobs/employeeMailScheduler");
 
 // 🔥 Import cron for auto sync
