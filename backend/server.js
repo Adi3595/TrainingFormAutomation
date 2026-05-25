@@ -55,7 +55,7 @@ app.get("/api", (req, res) => {
 app.use(express.static(path.join(__dirname, "build")));
 
 // 🔥 React Router Fix
-app.get("*", (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, "build", "index.html"));
 });
 
