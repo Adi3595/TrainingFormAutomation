@@ -9,16 +9,12 @@ require("dotenv").config();
 // 📧 Transporter (FIXED)
 // ==============================
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",   // 🔥 avoid "service: gmail" (causes IPv6 DNS issues)
+  host: "smtp.gmail.com",
   port: 587,
-  secure: false, // TLS
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD
-  },
-  tls: {
-    connectTimeout: 100000,
-    rejectUnauthorized: false
   }
 });
 
