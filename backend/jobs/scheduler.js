@@ -1,4 +1,4 @@
-// Scheduler.js
+// scheduler.js
 const cron = require("node-cron");
 const pool = require("../db");
 const { sendManagerEmail } = require("../services/emailService");

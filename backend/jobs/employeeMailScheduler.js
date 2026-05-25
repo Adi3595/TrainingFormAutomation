@@ -1,3 +1,4 @@
+// employeeMailScheduler.js
 const cron = require("node-cron");
 const pool = require("../db");
 const { sendEmployeeTrainingEmail } = require("../services/emailService");
