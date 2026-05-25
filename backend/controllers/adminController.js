@@ -666,7 +666,7 @@ exports.uploadEmployeeFeedback = async (req, res) => {
         
         // Map rating - your Excel uses "Overall rating of the programme? (5 Excellent and 1 Poor)"
         let rating = null;
-        const ratingColumn = row["Overall rating of the programme? (5 Excellent and 1 Poor)"] || 
+        const ratingColumn = row["Overall rating of the programme? (5 Excellent and 1 Poor)"] || 
                             row["rating"] || 
                             row["Rating"] || 
                             row["Overall rating"] || 
