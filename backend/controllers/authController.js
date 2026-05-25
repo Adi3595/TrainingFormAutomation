@@ -71,27 +71,16 @@ exports.signup = async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCompany = company.trim();
 
-    // Check domain restriction
+    // Check domain restriction - REDIRECT for web
     if (!isAllowedDomain(cleanEmail)) {
       const restrictionMessage = getDomainRestrictionMessage();
-      
-      // Check if request expects JSON (API) or redirect (browser)
-      const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
-      
-      if (acceptsHtml) {
-        return redirectToError(res, "domain_not_allowed", restrictionMessage || "Your email domain is not authorized to access this system.");
-      }
-      
-      return res.status(403).json({ 
-        error: "Access restricted",
-        message: restrictionMessage || "Your email domain is not authorized to access this system."
-      });
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=domain_not_allowed&message=${encodeURIComponent(restrictionMessage || "Your email domain is not authorized to access this system.")}`);
     }
 
     if (password.length < 8) {
-      return res.status(400).json({
-        error: "Password must be at least 8 characters"
-      });
+      // For password length error, we need to handle differently
+      // Since it's a form submission, we should redirect with error
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=signup_failed&message=${encodeURIComponent("Password must be at least 8 characters")}`);
     }
 
     const existing = await pool.query(
@@ -100,7 +89,7 @@ exports.signup = async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({ error: "User already exists" });
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=signup_failed&message=${encodeURIComponent("User already exists")}`);
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -120,19 +109,16 @@ exports.signup = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    return res.json({
-      message: "Account created successfully",
-      token,
-      user
-    });
+    return res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${token}`);
+    
   } catch (error) {
     console.error("Signup error:", error);
-    return res.status(500).json({ error: "Server error" });
+    return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=signup_failed&message=${encodeURIComponent("Server error")}`);
   }
 };
 
 // ==============================
-// LOGIN (with domain restriction - redirect for web, JSON for API)
+// LOGIN (with domain restriction - REDIRECT for web)
 // ==============================
 exports.login = async (req, res) => {
   try {
@@ -144,21 +130,11 @@ exports.login = async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check domain restriction
+    // Check domain restriction - NOW REDIRECTS instead of returning JSON
     if (!isAllowedDomain(cleanEmail)) {
       const restrictionMessage = getDomainRestrictionMessage();
-      
-      // Check if request expects JSON (API) or redirect (browser)
-      const acceptsHtml = req.headers.accept && req.headers.accept.includes('text/html');
-      
-      if (acceptsHtml) {
-        return redirectToError(res, "domain_not_allowed", restrictionMessage || "Your email domain is not authorized to access this system.");
-      }
-      
-      return res.status(403).json({ 
-        error: "Access restricted",
-        message: restrictionMessage || "Your email domain is not authorized to access this system."
-      });
+      // REDIRECT to auth-error page
+      return res.redirect(`${process.env.FRONTEND_URL}/auth-error?error=domain_not_allowed&message=${encodeURIComponent(restrictionMessage || "Your email domain is not authorized to access this system.")}`);
     }
 
     const result = await pool.query(
@@ -190,17 +166,10 @@ exports.login = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    return res.json({
-      message: "Login successful",
-      token,
-      user: {
-        user_id: user.user_id,
-        name: user.name,
-        email: user.email,
-        company: user.company,
-        role: user.role
-      }
-    });
+    // For successful login, you need to redirect to frontend with token
+    // Since this is a form submission, we should redirect to auth-success
+    return res.redirect(`${process.env.FRONTEND_URL}/auth-success?token=${token}`);
+
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ error: "Server error" });

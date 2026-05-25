@@ -195,6 +195,7 @@ function LoginPage() {
     return Object.keys(errors).length === 0;
   };
 
+  // In LoginPage.js, update the handleSubmit function:
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -205,74 +206,36 @@ function LoginPage() {
     setIsLoading(true);
     setAuthError(null);
 
-    try {
-      const endpoint = isSignUp
-        ? "https://trainingformautomation.onrender.com/api/auth/signup"
-        : "https://trainingformautomation.onrender.com/api/auth/login";
-
-      const payload = isSignUp
-        ? {
-            name: formData.name,
-            email: formData.email,
-            company: formData.company,
-            password: formData.password
-          }
-        : {
-            email: formData.email,
-            password: formData.password
-          };
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      // Check if the response is HTML (redirect) instead of JSON
-      const contentType = response.headers.get("content-type");
-      
-      if (contentType && contentType.includes("text/html")) {
-        // This is a redirect response, get the URL
-        const url = response.url;
-        // Extract token or error from URL
-        if (url.includes("auth-success")) {
-          const token = new URL(url).searchParams.get("token");
-          if (token) {
-            localStorage.setItem("token", token);
-            // Need to fetch user data
-            const userResponse = await fetch('/api/auth/me', {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const userData = await userResponse.json();
-            localStorage.setItem("user", JSON.stringify(userData.user));
-            navigate('/dashboard', { replace: true });
-          }
-        } else if (url.includes("auth-error")) {
-          // Redirect to error page
-          window.location.href = url;
+    // Create a form and submit it traditionally (so backend can redirect)
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = isSignUp
+      ? "https://trainingformautomation.onrender.com/api/auth/signup"
+      : "https://trainingformautomation.onrender.com/api/auth/login";
+    
+    const payload = isSignUp
+      ? {
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          password: formData.password
         }
-        return;
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Authentication failed");
-      }
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      navigate('/dashboard', { replace: true });
-    } catch (error) {
-      console.error("Authentication error:", error);
-      setFormErrors({ submit: error.message || "Authentication failed" });
-    } finally {
-      setIsLoading(false);
-    }
+      : {
+          email: formData.email,
+          password: formData.password
+        };
+    
+    // Add fields to form
+    Object.keys(payload).forEach(key => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = payload[key];
+      form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
   };
 
   const toggleMode = () => {
