@@ -225,19 +225,41 @@ function LoginPage() {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "Accept": "application/json"
         },
         body: JSON.stringify(payload)
       });
 
+      // Check if the response is HTML (redirect) instead of JSON
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("text/html")) {
+        // This is a redirect response, get the URL
+        const url = response.url;
+        // Extract token or error from URL
+        if (url.includes("auth-success")) {
+          const token = new URL(url).searchParams.get("token");
+          if (token) {
+            localStorage.setItem("token", token);
+            // Need to fetch user data
+            const userResponse = await fetch('/api/auth/me', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const userData = await userResponse.json();
+            localStorage.setItem("user", JSON.stringify(userData.user));
+            navigate('/dashboard', { replace: true });
+          }
+        } else if (url.includes("auth-error")) {
+          // Redirect to error page
+          window.location.href = url;
+        }
+        return;
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle domain restriction error - REDIRECT to error page
-        if (response.status === 403 && data.message) {
-          navigate(`/auth-error?error=domain_not_allowed&message=${encodeURIComponent(data.message)}`);
-          return;
-        }
         throw new Error(data.error || "Authentication failed");
       }
 
