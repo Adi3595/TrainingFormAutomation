@@ -6,7 +6,7 @@ const path = require("path");
 require("dotenv").config();
 
 // 🔥 Import scheduler (email sender)
-require("./jobs/Scheduler");
+require("./jobs/scheduler");
 require("./jobs/employeeMailScheduler");
 
 // 🔥 Import cron
