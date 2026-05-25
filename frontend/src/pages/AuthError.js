@@ -1,4 +1,4 @@
-// AuthError.js - Full Screen Dark Futuristic Theme with Floating Animations
+// AuthError.js - Full Screen Dark Monochrome Theme with Grid Background
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -8,44 +8,6 @@ function AuthError() {
   const [error, setError] = useState(null);
   const [errorDetails, setErrorDetails] = useState(null);
   const [countdown, setCountdown] = useState(5);
-  const [floatingElements, setFloatingElements] = useState([]);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-
-  // Create floating squares/particles on mount
-  useEffect(() => {
-    const elements = [];
-    const shapes = ["square", "circle", "triangle", "diamond"];
-    const colors = ["#667eea", "#764ba2", "#f093fb", "#4facfe", "#00f2fe", "#fa709a", "#fee140", "#30cfd0", "#a8edea", "#fed6e3"];
-    
-    for (let i = 0; i < 80; i++) {
-      elements.push({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        size: 10 + Math.random() * 60,
-        delay: Math.random() * 20,
-        duration: 8 + Math.random() * 25,
-        rotation: Math.random() * 360,
-        opacity: 0.02 + Math.random() * 0.1,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        shape: shapes[Math.floor(Math.random() * shapes.length)],
-        speed: 0.3 + Math.random() * 1.5
-      });
-    }
-    setFloatingElements(elements);
-  }, []);
-
-  // Mouse parallax effect
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      setMousePosition({
-        x: (e.clientX / window.innerWidth - 0.5) * 20,
-        y: (e.clientY / window.innerHeight - 0.5) * 20
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -97,163 +59,72 @@ function AuthError() {
     return () => clearInterval(timer);
   }, [location, navigate]);
 
-  // Get shape SVG
-  const getShapeSVG = (shape, color) => {
-    switch(shape) {
-      case "square":
-        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
-      case "circle":
-        return <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
-      case "triangle":
-        return <polygon points="50,5 95,90 5,90" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
-      case "diamond":
-        return <polygon points="50,5 95,50 50,95 5,50" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
-      default:
-        return <rect x="0" y="0" width="100" height="100" fill="none" stroke={color} strokeWidth="1" opacity="0.25"/>;
-    }
-  };
-
   return (
     <div style={{
-      minHeight: "100vh",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       width: "100%",
+      height: "100%",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      background: "radial-gradient(ellipse at 20% 30%, #0d0d1a 0%, #05050a 70%, #000000 100%)",
+      background: "#0a0a0a",
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       padding: "20px",
-      position: "relative",
-      overflow: "hidden"
+      overflow: "auto"
     }}>
-      {/* Animated Gradient Orbs */}
-      <div style={{
-        position: "absolute",
-        top: "10%",
-        left: "10%",
-        width: "50%",
-        height: "50%",
-        background: "radial-gradient(circle, rgba(220, 53, 69, 0.12) 0%, transparent 70%)",
-        animation: "pulse 8s ease-in-out infinite",
-        pointerEvents: "none"
-      }} />
-      <div style={{
-        position: "absolute",
-        bottom: "10%",
-        right: "10%",
-        width: "40%",
-        height: "40%",
-        background: "radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%)",
-        animation: "pulse 6s ease-in-out infinite reverse",
-        pointerEvents: "none"
-      }} />
-      <div style={{
-        position: "absolute",
-        top: "50%",
-        left: "50%",
-        width: "60%",
-        height: "60%",
-        transform: "translate(-50%, -50%)",
-        background: "radial-gradient(circle, rgba(220, 53, 69, 0.05) 0%, transparent 70%)",
-        animation: "pulse 10s ease-in-out infinite",
-        pointerEvents: "none"
-      }} />
-
-      {/* Floating Shapes/Particles */}
-      {floatingElements.map((el) => (
-        <div
-          key={el.id}
-          style={{
-            position: "absolute",
-            left: `${el.x}%`,
-            top: `${el.y}%`,
-            width: `${el.size}px`,
-            height: `${el.size}px`,
-            animation: `float ${el.duration}s ease-in-out infinite`,
-            animationDelay: `${el.delay}s`,
-            transform: `rotate(${el.rotation}deg) translate(${mousePosition.x * el.speed}px, ${mousePosition.y * el.speed}px)`,
-            pointerEvents: "none",
-            zIndex: 0,
-            opacity: el.opacity
-          }}
-        >
-          <svg viewBox="0 0 100 100" width="100%" height="100%">
-            {getShapeSVG(el.shape, el.color)}
-          </svg>
-        </div>
-      ))}
-
-      {/* Grid Background */}
-      <svg style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        opacity: 0.04,
-        pointerEvents: "none",
-        zIndex: 0
-      }}>
-        <defs>
-          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-            <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="0.5"/>
-            <circle cx="0" cy="0" r="1.5" fill="rgba(255,255,255,0.3)"/>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-      </svg>
-
-      {/* Scanning Line Effect */}
+      
+      {/* Black Squared Tiles Background */}
       <div style={{
         position: "absolute",
         top: 0,
         left: 0,
         right: 0,
-        height: "2px",
-        background: "linear-gradient(90deg, transparent, #dc3545, #c82333, #dc3545, transparent)",
-        animation: "scan 4s linear infinite",
-        opacity: 0.5,
-        pointerEvents: "none"
+        bottom: 0,
+        width: "100%",
+        height: "100%",
+        backgroundImage: `
+          linear-gradient(to right, #1a1a1a 1px, transparent 1px),
+          linear-gradient(to bottom, #1a1a1a 1px, transparent 1px)
+        `,
+        backgroundSize: "50px 50px",
+        zIndex: 0
       }} />
 
-      {/* Main Card */}
+      {/* Dark Gradient Overlay */}
       <div style={{
-        maxWidth: "550px",
-        width: "100%",
-        background: "rgba(10, 10, 18, 0.85)",
-        backdropFilter: "blur(20px)",
-        borderRadius: "32px",
-        border: "1px solid rgba(220, 53, 69, 0.25)",
-        padding: "48px 40px",
-        textAlign: "center",
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(220, 53, 69, 0.1), 0 0 30px rgba(220, 53, 69, 0.1)",
-        position: "relative",
-        zIndex: 10,
-        animation: "fadeInUp 0.6s ease-out",
-        transform: `translate(${mousePosition.x * 0.1}px, ${mousePosition.y * 0.1}px)`
-      }}>
-        {/* Glow Effect on Card */}
-        <div style={{
-          position: "absolute",
-          top: -1,
-          left: -1,
-          right: -1,
-          bottom: -1,
-          background: "linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(118, 75, 162, 0.05))",
-          borderRadius: "32px",
-          zIndex: -1,
-          filter: "blur(10px)"
-        }} />
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)",
+        zIndex: 1
+      }} />
 
-        {/* Icon with Pulse Animation */}
+      {/* Main Card - Full Width Content */}
+      <div style={{
+        maxWidth: "600px",
+        width: "90%",
+        background: "rgba(5, 5, 5, 0.95)",
+        borderRadius: "0px",
+        border: "1px solid #2a2a2a",
+        padding: "60px 48px",
+        textAlign: "center",
+        position: "relative",
+        zIndex: 2,
+        animation: "fadeInUp 0.6s ease-out"
+      }}>
+        
+        {/* Icon */}
         <div style={{
           fontSize: "80px",
           marginBottom: "24px",
           display: "inline-block",
-          animation: "shake 0.5s ease-in-out",
-          filter: error === "Access Restricted" 
-            ? "drop-shadow(0 0 20px rgba(220, 53, 69, 0.5))" 
-            : "drop-shadow(0 0 20px rgba(102, 126, 234, 0.5))"
+          opacity: 0.9
         }}>
           {error === "Access Restricted" ? "🔒" : "⚠️"}
         </div>
@@ -261,10 +132,7 @@ function AuthError() {
         <h1 style={{
           fontSize: "32px",
           fontWeight: "700",
-          background: "linear-gradient(135deg, #fff, #a0a0b0)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
+          color: "#e0e0e0",
           marginBottom: "16px",
           letterSpacing: "-0.5px"
         }}>
@@ -273,7 +141,7 @@ function AuthError() {
         
         <p style={{
           fontSize: "16px",
-          color: "#a0a0b0",
+          color: "#a0a0a0",
           marginBottom: "28px",
           lineHeight: "1.6"
         }}>
@@ -282,38 +150,37 @@ function AuthError() {
         
         {error === "Access Restricted" && (
           <div style={{
-            background: "rgba(220, 53, 69, 0.08)",
-            borderRadius: "16px",
+            background: "rgba(30, 30, 30, 0.5)",
             padding: "20px",
             marginBottom: "28px",
             textAlign: "left",
-            border: "1px solid rgba(220, 53, 69, 0.15)"
+            border: "1px solid #2a2a2a"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-              <span style={{ fontSize: "24px" }}>💡</span>
-              <p style={{ fontSize: "14px", color: "#c0c0d0", margin: 0, fontWeight: "500" }}>
-                What does this mean?
+              <span style={{ fontSize: "20px" }}>📌</span>
+              <p style={{ fontSize: "14px", color: "#c0c0c0", margin: 0, fontWeight: "500" }}>
+                Access Information
               </p>
             </div>
             <p style={{
               fontSize: "14px",
-              color: "#a0a0b0",
-              margin: "0 0 12px 36px",
+              color: "#888888",
+              margin: "0 0 12px 32px",
               lineHeight: "1.5"
             }}>
               This system is restricted to specific email domains only. 
               Your email domain is not on the approved list.
             </p>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
-              <span style={{ fontSize: "24px" }}>🔧</span>
-              <p style={{ fontSize: "14px", color: "#c0c0d0", margin: 0, fontWeight: "500" }}>
-                What can you do?
+              <span style={{ fontSize: "20px" }}>⚙️</span>
+              <p style={{ fontSize: "14px", color: "#c0c0c0", margin: 0, fontWeight: "500" }}>
+                Next Steps
               </p>
             </div>
             <p style={{
               fontSize: "14px",
-              color: "#a0a0b0",
-              margin: "0 0 0 36px",
+              color: "#888888",
+              margin: "0 0 0 32px",
               lineHeight: "1.5"
             }}>
               Contact your system administrator to request access or use an approved email address.
@@ -327,110 +194,65 @@ function AuthError() {
           position: "relative"
         }}>
           <div style={{
-            height: "4px",
-            background: "rgba(255, 255, 255, 0.1)",
-            borderRadius: "2px",
+            height: "3px",
+            background: "#1a1a1a",
             overflow: "hidden"
           }}>
             <div style={{
               width: `${(countdown / 5) * 100}%`,
               height: "100%",
-              background: "linear-gradient(90deg, #dc3545, #c82333)",
-              borderRadius: "2px",
-              transition: "width 0.5s linear",
-              animation: "pulseGlow 1s ease-in-out infinite"
+              background: "#666666",
+              transition: "width 0.5s linear"
             }} />
           </div>
           <p style={{
             fontSize: "13px",
-            color: "#6b7280",
+            color: "#666666",
             marginTop: "12px"
           }}>
-            Redirecting to login page in <span style={{ color: "#dc3545", fontWeight: "600" }}>{countdown}</span> seconds...
+            Redirecting to login page in <span style={{ color: "#aaaaaa", fontWeight: "600" }}>{countdown}</span> seconds...
           </p>
         </div>
         
         <button
           onClick={() => navigate("/login", { replace: true })}
           style={{
-            background: "linear-gradient(135deg, #dc3545 0%, #c82333 100%)",
-            border: "none",
-            borderRadius: "14px",
+            background: "#1a1a1a",
+            border: "1px solid #333333",
+            borderRadius: "0px",
             padding: "14px 28px",
             fontSize: "16px",
             fontWeight: "600",
-            color: "white",
+            color: "#e0e0e0",
             cursor: "pointer",
             transition: "all 0.3s ease",
-            width: "100%",
-            position: "relative",
-            overflow: "hidden"
+            width: "100%"
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 10px 25px -5px rgba(220, 53, 69, 0.4)";
+            e.currentTarget.style.background = "#222222";
+            e.currentTarget.style.borderColor = "#555555";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "none";
+            e.currentTarget.style.background = "#1a1a1a";
+            e.currentTarget.style.borderColor = "#333333";
           }}
         >
-          <span style={{ position: "relative", zIndex: 1 }}>Return to Login</span>
-          <div style={{
-            position: "absolute",
-            top: 0,
-            left: "-100%",
-            width: "100%",
-            height: "100%",
-            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-            transition: "left 0.5s ease"
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.left = "100%"}
-          onMouseLeave={(e) => e.currentTarget.style.left = "-100%"} />
+          Return to Login
         </button>
 
         {/* Footer Text */}
         <p style={{
-          fontSize: "12px",
-          color: "#4a4a5a",
+          fontSize: "11px",
+          color: "#444444",
           marginTop: "24px",
           letterSpacing: "0.3px"
         }}>
-          HR Training Management System • Secure Authentication
+          HR TRAINING MANAGEMENT SYSTEM
         </p>
       </div>
 
       {/* CSS Animations */}
       <style>{`
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0px) rotate(0deg);
-          }
-          50% {
-            transform: translateY(-30px) rotate(10deg);
-          }
-        }
-        
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 0.2;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 0.5;
-            transform: scale(1.1);
-          }
-        }
-        
-        @keyframes scan {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
-        }
-        
         @keyframes fadeInUp {
           from {
             opacity: 0;
@@ -439,27 +261,6 @@ function AuthError() {
           to {
             opacity: 1;
             transform: translateY(0);
-          }
-        }
-        
-        @keyframes shake {
-          0%, 100% {
-            transform: translateX(0);
-          }
-          25% {
-            transform: translateX(-10px);
-          }
-          75% {
-            transform: translateX(10px);
-          }
-        }
-        
-        @keyframes pulseGlow {
-          0%, 100% {
-            opacity: 0.7;
-          }
-          50% {
-            opacity: 1;
           }
         }
       `}</style>
