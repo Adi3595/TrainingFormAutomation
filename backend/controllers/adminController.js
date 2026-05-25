@@ -548,7 +548,9 @@ exports.uploadEmployees = async (req, res) => {
   }
 };
 
-// Upload Managers CSV
+// ============================================================
+// UPDATED: Upload Managers CSV (with duplicate handling)
+// ============================================================
 exports.uploadManagers = async (req, res) => {
   const client = await pool.connect();
 
@@ -576,36 +578,80 @@ exports.uploadManagers = async (req, res) => {
 
     for (let row of data) {
       try {
-        const manager_id = row.manager_id || row["manager_id"];
-        const name = row.name || row.Name;
-        const email = row.email || row.Email;
-        const department = row.department || row.Department;
+        // Get values from CSV with multiple possible column names
+        const manager_code = row.manager_code || row["manager_code"] || row["Manager Code"] || row["ManagerCode"] || "";
+        const name = row.name || row.Name || row["Manager Name"] || "";
+        const email = row.email || row.Email || row["Manager Email"] || "";
+        const department = row.department || row.Department || "";
 
-        if (!manager_id || !email) {
+        if (!manager_code || !name || !email) {
           skippedCount++;
-          errors.push({ manager_id, email, error: "Missing required fields" });
+          errors.push({ manager_code, email, error: "Missing required fields (manager_code, name, or email)" });
           continue;
         }
 
-        const result = await client.query(
-          `INSERT INTO managers (manager_id, name, email, department)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (manager_id) DO UPDATE SET
-             name = EXCLUDED.name,
-             email = EXCLUDED.email,
-             department = EXCLUDED.department
-           RETURNING *`,
-          [manager_id, name || null, email, department || null]
+        // Check if manager already exists by manager_code or email
+        const existing = await client.query(
+          `SELECT manager_id, manager_code, name, email FROM managers WHERE manager_code = $1 OR email = $2`,
+          [manager_code, email]
         );
 
-        if (result.rows.length > 0) {
-          insertedCount++;
+        let result;
+
+        if (existing.rows.length > 0) {
+          // Update existing manager
+          result = await client.query(
+            `UPDATE managers 
+             SET name = $1, 
+                 email = $2, 
+                 department = $3,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE manager_code = $4
+             RETURNING manager_id, manager_code, name, email, department`,
+            [name, email, department || null, manager_code]
+          );
+          updatedCount++;
+          console.log(`✅ Updated manager: ${name} (Code: ${manager_code})`);
         } else {
+          // Check if code already exists (race condition)
+          const codeCheck = await client.query(
+            `SELECT manager_code FROM managers WHERE manager_code = $1`,
+            [manager_code]
+          );
+          
+          let finalCode = manager_code;
+          if (codeCheck.rows.length > 0) {
+            const randomSuffix = Math.floor(Math.random() * 10000);
+            finalCode = `${manager_code}_${randomSuffix}`;
+            console.log(`⚠️ Manager code ${manager_code} exists, using: ${finalCode}`);
+          }
+          
+          // Generate UUID from manager_code
+          const generatedUUID = generateManagerUUIDFromCode(finalCode);
+          
+          // Insert new manager
+          result = await client.query(
+            `INSERT INTO managers (manager_id, manager_code, name, email, department, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             RETURNING manager_id, manager_code, name, email, department`,
+            [generatedUUID, finalCode, name, email, department || null]
+          );
+          insertedCount++;
+          console.log(`✅ Inserted new manager: ${name} (Code: ${finalCode}, UUID: ${result.rows[0].manager_id})`);
+        }
+
+        if (result.rows.length === 0) {
           skippedCount++;
         }
+        
       } catch (rowError) {
+        console.error(`❌ Error processing manager:`, rowError.message);
         skippedCount++;
-        errors.push({ manager_id: row.manager_id, email: row.email, error: rowError.message });
+        errors.push({ 
+          manager_code: row.manager_code || row["Manager Code"],
+          email: row.email, 
+          error: rowError.message 
+        });
       }
     }
 
@@ -617,7 +663,8 @@ exports.uploadManagers = async (req, res) => {
     
     res.json({
       message: `Managers processed: ${insertedCount} inserted, ${updatedCount} updated, ${skippedCount} skipped`,
-      details: { inserted: insertedCount, updated: updatedCount, skipped: skippedCount }
+      details: { inserted: insertedCount, updated: updatedCount, skipped: skippedCount },
+      errors: errors.length > 0 ? errors.slice(0, 10) : undefined
     });
 
   } catch (err) {
@@ -628,6 +675,140 @@ exports.uploadManagers = async (req, res) => {
     client.release();
   }
 };
+
+// Helper function to generate UUID v5 from manager code (similar to employees)
+// ============================================================
+// UPDATED HELPER FUNCTION: Generate UUID v5 from manager code
+// ============================================================
+function generateManagerUUIDFromCode(managerCode) {
+  const namespace = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // DNS namespace UUID
+  const namespaceBuffer = Buffer.from(namespace.replace(/-/g, ''), 'hex');
+  const nameBuffer = Buffer.from(managerCode);
+  
+  // Create SHA-1 hash
+  const hash = crypto.createHash('sha1');
+  hash.update(namespaceBuffer);
+  hash.update(nameBuffer);
+  const hashBuffer = hash.digest();
+  
+  // Set version (5) and variant bits
+  hashBuffer[6] = (hashBuffer[6] & 0x0f) | 0x50;
+  hashBuffer[8] = (hashBuffer[8] & 0x3f) | 0x80;
+  
+  // Format as UUID
+  const uuid = hashBuffer.toString('hex', 0, 16);
+  return `${uuid.slice(0,8)}-${uuid.slice(8,12)}-${uuid.slice(12,16)}-${uuid.slice(16,20)}-${uuid.slice(20,32)}`;
+}
+
+// ============================================================
+// UPDATED: Get or Create Manager (with duplicate handling)
+// ============================================================
+async function getOrCreateManager(client, managerCode, managerName, managerEmail, department) {
+  // First, try to find existing manager by manager_code
+  let existing = null;
+  
+  if (managerCode && managerCode.trim() !== "") {
+    existing = await client.query(
+      `SELECT manager_id, manager_code, name, email, department, created_at, updated_at 
+       FROM managers 
+       WHERE manager_code = $1`,
+      [managerCode]
+    );
+  }
+  
+  // If not found by code, try by email
+  if ((!existing || existing.rows.length === 0) && managerEmail && managerEmail.trim() !== "") {
+    existing = await client.query(
+      `SELECT manager_id, manager_code, name, email, department, created_at, updated_at 
+       FROM managers 
+       WHERE email = $1`,
+      [managerEmail]
+    );
+  }
+  
+  // If found, return existing manager
+  if (existing && existing.rows.length > 0) {
+    const manager = existing.rows[0];
+    
+    // Update name if it has changed
+    if (manager.name !== managerName && managerName) {
+      await client.query(
+        `UPDATE managers 
+         SET name = $1, updated_at = CURRENT_TIMESTAMP 
+         WHERE manager_code = $2`,
+        [managerName, manager.manager_code]
+      );
+      console.log(`📝 Updated manager name: ${manager.manager_code} from "${manager.name}" to "${managerName}"`);
+    }
+    
+    return { 
+      manager_id: manager.manager_id,
+      manager_code: manager.manager_code,
+      was_created: false
+    };
+  }
+  
+  // If no manager_code provided, try to find by name
+  if ((!managerCode || managerCode.trim() === "") && managerName) {
+    existing = await client.query(
+      `SELECT manager_id, manager_code, name, email, department 
+       FROM managers 
+       WHERE name ILIKE $1 LIMIT 1`,
+      [`%${managerName.trim()}%`]
+    );
+    
+    if (existing && existing.rows.length > 0) {
+      console.log(`✅ Found existing manager by name: ${managerName} (Code: ${existing.rows[0].manager_code})`);
+      return { 
+        manager_id: existing.rows[0].manager_id,
+        manager_code: existing.rows[0].manager_code,
+        was_created: false
+      };
+    }
+  }
+  
+  // Create new manager - generate unique manager_code
+  let newManagerCode = managerCode;
+  
+  // If no manager_code provided, generate a unique one
+  if (!newManagerCode || newManagerCode.trim() === "") {
+    const timestamp = Date.now();
+    const randomSuffix = Math.floor(Math.random() * 10000);
+    newManagerCode = `MGR_${timestamp}_${randomSuffix}`;
+  } else {
+    // Check if manager_code already exists (race condition safety)
+    const codeCheck = await client.query(
+      `SELECT manager_code FROM managers WHERE manager_code = $1`,
+      [newManagerCode]
+    );
+    
+    if (codeCheck.rows.length > 0) {
+      // If code exists, append random suffix
+      const randomSuffix = Math.floor(Math.random() * 10000);
+      newManagerCode = `${newManagerCode}_${randomSuffix}`;
+      console.log(`⚠️ Manager code already exists, using: ${newManagerCode}`);
+    }
+  }
+  
+  // Generate UUID from manager_code
+  const generatedUUID = generateManagerUUIDFromCode(newManagerCode);
+  
+  // Create new manager
+  const result = await client.query(
+    `INSERT INTO managers (manager_id, manager_code, name, email, department, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+     RETURNING manager_id, manager_code, name, email, department`,
+    [generatedUUID, newManagerCode, managerName, managerEmail || null, department || null]
+  );
+  
+  console.log(`🆕 Created new manager: ${managerName} (Code: ${newManagerCode}, ID: ${result.rows[0].manager_id})`);
+  
+  return { 
+    manager_id: result.rows[0].manager_id,
+    manager_code: result.rows[0].manager_code,
+    was_created: true
+  };
+}
 
 // Upload Employee Feedback CSV (UPDATED - sends email to training creator/admin)
 exports.uploadEmployeeFeedback = async (req, res) => {
@@ -1028,7 +1209,7 @@ exports.uploadEmployeeFeedback = async (req, res) => {
 };
 
 // Upload Manager Feedback CSV (UPDATED - works with only names, no IDs)
-// Upload Manager Feedback CSV (UPDATED for your exact Microsoft Form export format)
+// Upload Manager Feedback CSV/Excel (UPDATED with manager_code support)
 exports.uploadManagerFeedback = async (req, res) => {
   const client = await pool.connect();
 
@@ -1058,6 +1239,7 @@ exports.uploadManagerFeedback = async (req, res) => {
     await client.query("BEGIN");
 
     let insertedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
     let cancelledEmailsCount = 0;
     const errors = [];
@@ -1081,24 +1263,18 @@ exports.uploadManagerFeedback = async (req, res) => {
           return "";
         };
 
-        // Map columns based on your Microsoft Form export format
-        // Your CSV columns: 
-        // Id, Start time, Completion time, Email, Name, Training Name, Employee Full Name, 
-        // Employee ID Number, Department, Manager Full Name, Manager ID Number, 
-        // Rate the employee's competency level before the training? ( 5 Excellent and 1 Poor ),
-        // Rate the employee's competency level after completing the training? ( 5 Excellent and 1 Poor ),
-        // Is the necessary competence established?,
-        // Competency Matrix Updation Required?,
-        // Do you notice any improvement / progress in the functional area?,
-        // Rate the overall performance improvement? ( 5 Excellent and 1 Poor ),
-        // Additional Feedback / Recommendations
-
+        // ============================================================
+        // COLUMN MAPPING - Based on Microsoft Form Export
+        // ============================================================
+        
+        // Training Information
         const training_name = getColumnValue(row, [
           "Training Name",
           "TrainingName",
           "training_name"
         ]).toString().trim();
 
+        // Employee Information
         const employee_name = getColumnValue(row, [
           "Employee Full Name",
           "Employee Name",
@@ -1111,7 +1287,8 @@ exports.uploadManagerFeedback = async (req, res) => {
           "Employee Id",
           "Employee ID",
           "employee_id",
-          "employeeId"
+          "employeeId",
+          "Per No"
         ]).toString().trim();
 
         const department = getColumnValue(row, [
@@ -1119,21 +1296,28 @@ exports.uploadManagerFeedback = async (req, res) => {
           "department"
         ]).toString().trim();
 
+        // Manager Information
         const manager_name = getColumnValue(row, [
           "Manager Full Name",
           "Manager Name",
-          "manager_name"
+          "manager_name",
+          "Manager name"
         ]).toString().trim();
 
-        const manager_id = getColumnValue(row, [
+        const manager_code = getColumnValue(row, [
           "Manager ID Number",
           "Manager Id",
           "Manager ID",
           "manager_id",
-          "managerId"
+          "managerId",
+          "ManagerCode"
         ]).toString().trim();
 
-        // Rating 1: Competency Level BEFORE Training
+        // ============================================================
+        // RATING QUESTIONS
+        // ============================================================
+        
+        // Rating 1: Competency Level BEFORE Training (1-5 scale)
         const competencyBeforeRaw = getColumnValue(row, [
           "Rate the employee's competency level before the training? ( 5 Excellent and 1 Poor )",
           "Rate the employee's competency level before the training?",
@@ -1159,7 +1343,7 @@ exports.uploadManagerFeedback = async (req, res) => {
           }
         }
 
-        // Rating 2: Competency Level AFTER Training
+        // Rating 2: Competency Level AFTER Training (1-5 scale) - PRIMARY RATING
         const competencyAfterRaw = getColumnValue(row, [
           "Rate the employee's competency level after completing the training? ( 5 Excellent and 1 Poor )",
           "Rate the employee's competency level after completing the training?",
@@ -1185,7 +1369,7 @@ exports.uploadManagerFeedback = async (req, res) => {
           }
         }
 
-        // Rating 3: Overall Performance Improvement
+        // Rating 3: Overall Performance Improvement (1-5 scale)
         const overallRatingRaw = getColumnValue(row, [
           "Rate the overall performance improvement? ( 5 Excellent and 1 Poor )",
           "Rate the overall performance improvement?",
@@ -1211,7 +1395,10 @@ exports.uploadManagerFeedback = async (req, res) => {
           }
         }
 
-        // Yes/No fields
+        // ============================================================
+        // YES/NO QUESTIONS
+        // ============================================================
+        
         const competenceEstablished = getColumnValue(row, [
           "Is the necessary competence established?",
           "necessary competence established"
@@ -1222,7 +1409,10 @@ exports.uploadManagerFeedback = async (req, res) => {
           "Competency Matrix Updation Required"
         ]).toString().trim();
 
-        // Descriptive comments
+        // ============================================================
+        // DESCRIPTIVE COMMENTS
+        // ============================================================
+        
         const improvementComments = getColumnValue(row, [
           "Do you notice any improvement / progress in the functional area?",
           "Do you notice any improvement / progress",
@@ -1236,15 +1426,16 @@ exports.uploadManagerFeedback = async (req, res) => {
           "additional_feedback"
         ]).toString().trim();
 
-        // Combine all comments
+        // Combine all comments into one field
         let comments = "";
         const commentParts = [];
-        if (improvementComments) commentParts.push(`Improvement/Progress: ${improvementComments}`);
-        if (additionalFeedback) commentParts.push(`Additional Feedback: ${additionalFeedback}`);
-        if (competenceEstablished) commentParts.push(`Competence Established: ${competenceEstablished}`);
-        if (matrixUpdation) commentParts.push(`Matrix Updation Required: ${matrixUpdation}`);
+        if (improvementComments) commentParts.push(`📈 Improvement/Progress: ${improvementComments}`);
+        if (additionalFeedback) commentParts.push(`💡 Additional Feedback: ${additionalFeedback}`);
+        if (competenceEstablished) commentParts.push(`✅ Competence Established: ${competenceEstablished}`);
+        if (matrixUpdation) commentParts.push(`🔄 Matrix Updation Required: ${matrixUpdation}`);
         comments = commentParts.join(" | ");
 
+        // Submission timestamp
         const submittedDate = getColumnValue(row, [
           "Completion time",
           "Completion Time",
@@ -1252,91 +1443,120 @@ exports.uploadManagerFeedback = async (req, res) => {
           "submittedAt"
         ]);
 
-        console.log("Processing manager feedback:", {
+        console.log("📊 Processing manager feedback:", {
           training_name,
           employee_name,
           employee_code,
           manager_name,
-          manager_id,
+          manager_code,
           competencyBefore,
           competencyAfter,
           overallRating,
           comments: comments.substring(0, 100)
         });
 
-        // Validate required fields
+        // ============================================================
+        // VALIDATION
+        // ============================================================
+        
         if (!training_name) {
-          console.log("⚠ Skipping row - missing training_name");
+          console.log("⚠️ Skipping row - missing training_name");
           skippedCount++;
           errors.push({ row: row, error: "Missing training name" });
           continue;
         }
 
         if (!employee_name && !employee_code) {
-          console.log("⚠ Skipping row - missing employee identification");
+          console.log("⚠️ Skipping row - missing employee identification");
           skippedCount++;
           errors.push({ row: row, error: "Missing employee name or code" });
           continue;
         }
 
-        if (!manager_name && !manager_id) {
-          console.log("⚠ Skipping row - missing manager identification");
+        if (!manager_name && !manager_code) {
+          console.log("⚠️ Skipping row - missing manager identification");
           skippedCount++;
-          errors.push({ row: row, error: "Missing manager name or ID" });
+          errors.push({ row: row, error: "Missing manager name or code" });
           continue;
         }
 
-        // Get or create manager (find by ID first, then by name)
+        // ============================================================
+        // GET OR CREATE MANAGER
+        // ============================================================
+        
         let manager = null;
-        
-        if (manager_id) {
-          manager = await client.query(
-            `SELECT * FROM managers WHERE manager_id = $1`,
-            [manager_id]
+        let managerCodeToUse = manager_code;
+
+        // First, try to find existing manager by manager_code
+        if (managerCodeToUse && managerCodeToUse.trim() !== "") {
+          const existingManager = await client.query(
+            `SELECT manager_id, manager_code, name, email, department FROM managers WHERE manager_code = $1`,
+            [managerCodeToUse]
           );
-        }
-        
-        if ((!manager || manager.rows.length === 0) && manager_name) {
-          manager = await client.query(
-            `SELECT * FROM managers WHERE name ILIKE $1 LIMIT 1`,
-            [`%${manager_name.trim()}%`]
-          );
+          if (existingManager.rows.length > 0) {
+            manager = existingManager;
+          }
         }
 
-        // If manager not found, create a new one
-        if (!manager || manager.rows.length === 0) {
-          console.log(`⚠ Manager not found. Creating new manager: ${manager_name}`);
-          const newManager = await client.query(
-            `INSERT INTO managers (manager_id, name, department)
-             VALUES ($1, $2, $3)
-             ON CONFLICT (manager_id) DO NOTHING
-             RETURNING *`,
-            [manager_id || `MGR_${Date.now()}`, manager_name, department || null]
+        // If not found by code, try by name using helper
+        if ((!manager || manager.rows.length === 0) && manager_name) {
+          // Try to find by name using getOrCreateManager (which will find existing by name)
+          const foundManager = await getOrCreateManager(
+            client,
+            managerCodeToUse || `TEMP_${Date.now()}`,
+            manager_name,
+            null,
+            department || null
           );
           
-          if (newManager.rows.length === 0) {
-            // Try to fetch again
-            manager = await client.query(
-              `SELECT * FROM managers WHERE name ILIKE $1 LIMIT 1`,
-              [`%${manager_name.trim()}%`]
-            );
-          } else {
-            manager = newManager;
+          if (foundManager && foundManager.manager_id) {
+            manager = { rows: [{ 
+              manager_id: foundManager.manager_id, 
+              manager_code: foundManager.manager_code,
+              name: manager_name 
+            }] };
+          }
+        }
+
+        // If manager not found, create a new one using helper
+        if (!manager || manager.rows.length === 0) {
+          console.log(`⚠️ Manager not found. Creating new manager: ${manager_name}`);
+          
+          const newManager = await getOrCreateManager(
+            client,
+            managerCodeToUse || `MGR_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+            manager_name,
+            null,
+            department || null
+          );
+          
+          if (newManager && newManager.manager_id) {
+            manager = { rows: [{ 
+              manager_id: newManager.manager_id, 
+              manager_code: newManager.manager_code,
+              name: manager_name 
+            }] };
           }
         }
 
         if (!manager || manager.rows.length === 0) {
           console.log(`❌ Failed to find or create manager`);
           skippedCount++;
-          errors.push({ manager_name, manager_id, error: "Manager not found and could not be created" });
+          errors.push({ manager_name, manager_code, error: "Manager not found and could not be created" });
           continue;
         }
 
         const managerDbId = manager.rows[0].manager_id;
+        const managerCodeValue = manager.rows[0].manager_code;
+        console.log(`✅ Manager: ${manager.rows[0].name} (Code: ${managerCodeValue}, ID: ${managerDbId})`);
 
-        // Get employee by code or name
+        // ============================================================
+        // GET OR CREATE EMPLOYEE
+        // ============================================================
+        
         let employee = null;
         
+        // First try by employee_code
         if (employee_code) {
           employee = await client.query(
             `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE employee_code = $1`,
@@ -1344,6 +1564,7 @@ exports.uploadManagerFeedback = async (req, res) => {
           );
         }
         
+        // If not found by code, try by name
         if ((!employee || employee.rows.length === 0) && employee_name) {
           employee = await client.query(
             `SELECT employee_id, employee_code, name, manager_id FROM employees WHERE name ILIKE $1 LIMIT 1`,
@@ -1353,12 +1574,16 @@ exports.uploadManagerFeedback = async (req, res) => {
 
         // If employee not found, create a new one
         if (!employee || employee.rows.length === 0) {
-          console.log(`⚠ Employee not found. Creating new employee: ${employee_name}`);
+          console.log(`⚠️ Employee not found. Creating new employee: ${employee_name}`);
+          
+          const newEmployeeCode = employee_code || `EMP_${Date.now()}`;
+          const generatedUUID = generateUUIDFromCode(newEmployeeCode);
+          
           const newEmployee = await client.query(
-            `INSERT INTO employees (employee_code, name, department, manager_id)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO employees (employee_id, employee_code, name, email, department, manager_id, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
              RETURNING employee_id, employee_code, name`,
-            [employee_code || `EMP_${Date.now()}`, employee_name, department || null, managerDbId]
+            [generatedUUID, newEmployeeCode, employee_name, null, department || null, managerDbId]
           );
           employee = newEmployee;
         }
@@ -1371,9 +1596,12 @@ exports.uploadManagerFeedback = async (req, res) => {
         }
 
         const employeeDbId = employee.rows[0].employee_id;
-        console.log(`✅ Found/Created employee: ${employee.rows[0].name} (Code: ${employee.rows[0].employee_code})`);
+        console.log(`✅ Employee: ${employee.rows[0].name} (Code: ${employee.rows[0].employee_code}, ID: ${employeeDbId})`);
 
-        // Get training by name
+        // ============================================================
+        // GET TRAINING
+        // ============================================================
+        
         let training = await client.query(
           `SELECT training_id, training_name FROM training_programs WHERE training_name ILIKE $1 LIMIT 1`,
           [`%${training_name.trim()}%`]
@@ -1388,19 +1616,22 @@ exports.uploadManagerFeedback = async (req, res) => {
         }
 
         if (training.rows.length === 0) {
-          console.log(`⚠ Training not found with name: "${training_name}"`);
+          console.log(`⚠️ Training not found with name: "${training_name}"`);
           skippedCount++;
           errors.push({ training_name, error: "Training not found in database" });
           continue;
         }
 
         const trainingDbId = training.rows[0].training_id;
-        console.log(`✅ Found training: ${training.rows[0].training_name} (ID: ${trainingDbId})`);
+        console.log(`✅ Training: ${training.rows[0].training_name} (ID: ${trainingDbId})`);
 
-        // Use the after-training competency as the main rating
+        // ============================================================
+        // SAVE MANAGER FEEDBACK
+        // ============================================================
+        
+        // Use the after-training competency as the main rating (fallback to overall rating or before)
         const finalRating = competencyAfter || overallRating || competencyBefore;
 
-        // Prepare feedback data
         if (finalRating !== null || comments) {
           // Check if feedback already exists
           const existingFeedback = await client.query(
@@ -1412,36 +1643,37 @@ exports.uploadManagerFeedback = async (req, res) => {
           let result;
           
           if (existingFeedback.rows.length > 0) {
-            // Update existing feedback
+            // Update existing feedback - merge comments
             const existingComments = existingFeedback.rows[0].manager_comments || "";
-            const newComments = comments ? (existingComments ? existingComments + " | " + comments : comments) : existingComments;
+            const newComments = comments ? (existingComments ? existingComments + " \n\n " + comments : comments) : existingComments;
             
             result = await client.query(
               `UPDATE manager_feedback
                SET performance_rating = COALESCE($1, performance_rating),
                    manager_comments = $2,
                    form_completed = true,
-                   submitted_at = CURRENT_TIMESTAMP
+                   submitted_at = CURRENT_TIMESTAMP,
+                   updated_at = CURRENT_TIMESTAMP
                WHERE manager_id = $3 AND employee_id = $4 AND training_id = $5
                RETURNING *`,
               [finalRating, newComments || null, managerDbId, employeeDbId, trainingDbId]
             );
+            updatedCount++;
             console.log(`📝 Updated existing feedback for employee: ${employee.rows[0].name}`);
           } else {
             // Insert new feedback
             result = await client.query(
               `INSERT INTO manager_feedback
-               (manager_id, employee_id, training_id, performance_rating, manager_comments, form_completed, submitted_at)
-               VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP)
+               (manager_id, employee_id, training_id, performance_rating, manager_comments, form_completed, submitted_at, created_at)
+               VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                RETURNING *`,
               [managerDbId, employeeDbId, trainingDbId, finalRating, comments || null]
             );
+            insertedCount++;
             console.log(`✅ Inserted new feedback for employee: ${employee.rows[0].name}`);
           }
 
           if (result.rows.length > 0) {
-            insertedCount++;
-            
             // Cancel any pending emails for this manager-employee-training combination
             const cancelledEmails = await client.query(
               `UPDATE scheduled_emails 
@@ -1465,13 +1697,13 @@ exports.uploadManagerFeedback = async (req, res) => {
             
             if (cancelledEmails.rows.length > 0) {
               cancelledEmailsCount += cancelledEmails.rows.length;
-              console.log(`📧 Cancelled ${cancelledEmails.rows.length} pending email(s)`);
+              console.log(`📧 Cancelled ${cancelledEmails.rows.length} pending email(s) for ${employee.rows[0].name}`);
             }
           } else {
             skippedCount++;
           }
         } else {
-          console.log(`⚠ No rating or comments to save`);
+          console.log(`⚠️ No rating or comments to save for this row`);
           skippedCount++;
         }
 
@@ -1496,8 +1728,10 @@ exports.uploadManagerFeedback = async (req, res) => {
       message: `✅ Manager feedback uploaded successfully!`,
       summary: { 
         inserted: insertedCount, 
+        updated: updatedCount,
         skipped: skippedCount,
-        emailsCancelled: cancelledEmailsCount
+        emailsCancelled: cancelledEmailsCount,
+        totalProcessed: insertedCount + updatedCount + skippedCount
       },
       errors: errors.length > 0 ? errors.slice(0, 10) : undefined
     });
