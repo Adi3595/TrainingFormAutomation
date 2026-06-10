@@ -1,7 +1,6 @@
 # HR Training Management System (HTMS)
 
 ![version](https://img.shields.io/badge/version-1.0.0-blue) 
-![license](https://img.shields.io/badge/license-MIT-green)
 ![build](https://img.shields.io/badge/build-passing-brightgreen)
 
 ---
@@ -292,10 +291,10 @@ If this is open source:
 
 ## 18) Contact & Support 📬
 
-- Author: [your-name]
-- Email: [your-email]
-- GitHub: [your-repo-url]
-- Demo: [your-demo-url]
+- Author: Aditya Gawali
+- Email: gawaliaditya1483@gmail.com
+- GitHub: ://github.com/Adi3595/TrainingFormAutomation
+- Demo: https://trainingformautomation.onrender.com
 
 ---
 
