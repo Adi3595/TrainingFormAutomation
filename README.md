@@ -279,13 +279,11 @@ Test strategy & manual checklist:
 
 ---
 
-## 16) Contributing 🤝
+## 16) Contributors 🤝
 
-If this is open source:
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feature/<name>`
-3. Commit changes
-4. Open a Pull Request
+Aditya Gawali    
+Atharva Ghule
+
 
 ---
 
